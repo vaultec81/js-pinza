@@ -1,0 +1,1 @@
+exports.Config = require('./Config');
