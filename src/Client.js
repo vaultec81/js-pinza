@@ -5,7 +5,7 @@ const EnvironmentAdapter = require('./EnvironmentAdapter')
 const Components = require('./Components')
 const Path = require('path')
 var debug = require('debug')('pinza:client');
-const AvionDb = require('aviondb')
+const AvionDb = require('aviondb'); //Keep Import to add aviondb to orbitdb class; TODO remove work around
 const LevelDb = require('datastore-level');
 
 
@@ -18,10 +18,17 @@ class client {
         this.openClusters = {}
 
         const defaults = {
-            path: EnvironmentAdapter.path()
+            path: EnvironmentAdapter.repoPath()
         };
         this._options = mergeOptions(defaults, options);
         this.config = new Components.Config(EnvironmentAdapter.datastore(this._options.path))
+    }
+    cluster(name) {
+        if(!this.openClusters[name]) {
+            throw "Cluster not opened"
+        } else {
+            return this.openClusters[name];
+        }
     }
     async joinCluster(name, address) {
         var clusters = await this.listClusters();

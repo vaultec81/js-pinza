@@ -4,8 +4,7 @@ const IPFSHttpAPI = require('ipfs-http-client');
 (async() => {
     const client = new Client(new IPFSHttpAPI())
     await client.start()
-    var cluster = await client.createCluster("MyCluster")
-    await cluster.pin.add("QmT8NhSFEbFrex8h32AyPNda9N178tk8bRwWqgNaAw2EjZ")
-    //core.pin._reindex();
+    var cluster = await client.openCluster("MyCluster")
+    await cluster.pin.add("QmRh3E8nspRs57phegmkRVW17TSgidL8qu6ZCFt1ucfLwp")
 })();
 

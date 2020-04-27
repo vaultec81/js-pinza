@@ -2,7 +2,7 @@ const path = require('path');
 const _get = require('dlv')
 const mergeOptions = require('merge-options')
 const {Key} = require('interface-datastore')
-
+const DatastoreFs = require('datastore-fs')
 
 function obj_set(obj, props, value) {
     if (typeof props == 'string') {
@@ -51,7 +51,13 @@ class ChildConfig {
 }
 class Config {
     constructor(datastore) {
-        this.datastore = datastore;
+        if(typeof datastore === "string") {
+            this.datastore = new DatastoreFs(datastore, {
+                extension: ''
+            })
+        } else {
+            this.datastore = datastore;
+        }
 
         this.modules = {};
         this.obj_set = obj_set;
@@ -108,7 +114,14 @@ class Config {
     async init(config) {
         const defaultConfig = {
             ipfs: {
-                apiAddr: "/ip4/127.0.0.1/tcp/5001"
+                apiAddr: "/ip4/127.0.0.1/tcp/5001",
+                internalDaemon: false
+            },
+            api: {
+                http: {
+                    enabled: true,
+                    apiAddr: "/ip4/127.0.0.1/tcp/8001"
+                }
             },
             defaultClusterConfig: {
                 replication_factor: 3

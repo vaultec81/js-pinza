@@ -24,13 +24,16 @@ class Pin {
         this.cluster = cluster;
         this.opQueue = new PQueue({concurrency: 1});
     }
-    async add(cid, meta = {}, options) {
+    async add(cid, meta = {}, options = {}) {
+        const {bypass} = options;
         cid = new CID(cid);
         var record = await this.cluster.collection.findOne({
             cid: cid.toString()
         })
-        if(record) {
+        if(record && !bypass) {
             throw `Pin with cid of ${cid.toString()} already exists`
+        } else if(bypass === true) {
+            return;
         }
         await this.cluster.collection.insertOne({
             meta,
@@ -49,7 +52,7 @@ class Pin {
         await this.cluster._ipfs.pin.add(cid);
         var object_info = await this.cluster._ipfs.object.stat(cid)
         delete object_info.Hash
-        await this.cluster.datastore.put(`/commited/${pin}`, dagCbor.util.serialize({
+        await this.cluster.datastore.put(`/commited/${cid}`, dagCbor.util.serialize({
             object_stat: object_info
         }))
     }
@@ -58,9 +61,13 @@ class Pin {
     }
     async currentCommitment() {
         var out = {};
-        for await(var entry of this.cluster.datastore.query({prefix:"/commited", keysOnly: true})) {
-            const {key} = entry;
-            out[key.baseNamespace()] = {};
+        for await(var entry of this.cluster.datastore.query({prefix:"/commited"})) {
+            const {key, value} = entry;
+            if(value.length !== 0) {
+                out[key.baseNamespace()] = dagCbor.util.deserialize(value)
+            } else {
+                out[key.baseNamespace()] = {};
+            }
         }
         return out;
     }
@@ -122,8 +129,10 @@ class Sharding {
     async add(ipfsHash) {
         var cid = (new CID(ipfsHash)).toString();
         this._add(ipfsHash);
-        debug(`Adding new ipfsHash to datastore: ${cid}`);
-        await this.datastore.put(new Key(`pins/${cid}`), "");
+        if(!(await this.datastore.has(new Key(`pins/${cid}`)))) {
+            debug(`Adding new ipfsHash to datastore: ${cid}`);
+            await this.datastore.put(new Key(`pins/${cid}`), "");
+        }
     }
     _add(ipfsHash) {
         try {
@@ -210,6 +219,25 @@ class Cluster {
     }
     get address() {
         return this.db.address.toString()
+    }
+    async export() {
+        var pins = await this.collection.find({});
+        return {
+            pins,
+            totalAmount: pins.length
+        }
+    }
+    async import(in_object, options = {}) {
+        var {clear} = options;
+
+        if(clear === true) {
+            //TODO proper system to drop the collection using what is defined in aviondb.
+            //await this.collection.drop()
+        }
+        for(var pin of in_object.pins) {
+            var {cid, meta} = pin;
+            await this.pin.add(cid, meta, {bypass: true})
+        }
     }
     async start() {
         await this.sharding.start();

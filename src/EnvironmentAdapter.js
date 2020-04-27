@@ -6,7 +6,7 @@ const os = require('os');
 
 
 module.exports = {
-    path: function() {
+    repoPath: function() {
         if(isBrowser()) {
             return "pinza"
         } else {
