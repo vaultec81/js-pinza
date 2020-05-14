@@ -53,7 +53,7 @@ class Pin {
         var object_info = await this.cluster._ipfs.object.stat(cid)
         delete object_info.Hash
         await this.cluster.datastore.put(`/commited/${cid}`, dagCbor.util.serialize({
-            object_stat: object_info
+            stat: object_info
         }))
     }
     async _rm(cid) {
