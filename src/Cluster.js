@@ -220,23 +220,50 @@ class Cluster {
     get address() {
         return this.db.address.toString()
     }
-    async export() {
+    async export(options = {}) {
+        if(!options.format) {
+            options.format = "json"
+            //options.format = "cbor"
+            //options.format = "raw"
+        }
         var pins = await this.collection.find({});
-        return {
+        
+        var out = {
             pins,
-            totalAmount: pins.length
+            size: pins.length
+        }
+        if(options.format === "json") {
+            return JSON.stringify(out)
+        } else if(options.format === "cbor") {
+            return dagCbor.util.serialize(out)
+        } else if(options.format === "raw") {
+            return out;
         }
     }
     async import(in_object, options = {}) {
-        var {clear} = options;
-
-        if(clear === true) {
+        var {progressHandler} = options;
+        if(!options.format) {
+            options.format = "json"
+        }
+        if(options.format === "json") {
+            in_object = JSON.parse(in_object)
+        } else if(options.format === "cbor") {
+            in_object = dagCbor.util.deserialize(in_object)
+        } else if(options.format === "raw") {
+            
+        }
+        if(options.clear === true) {
             //TODO proper system to drop the collection using what is defined in aviondb.
             //await this.collection.drop()
         }
+        var totalDone = 0;
         for(var pin of in_object.pins) {
             var {cid, meta} = pin;
             await this.pin.add(cid, meta, {bypass: true})
+            totalDone++;
+            if(progressHandler) {
+                progressHandler(totalDone, in_object.size)
+            }
         }
     }
     async start() {
