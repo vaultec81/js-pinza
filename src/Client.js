@@ -44,9 +44,10 @@ class client {
     async createCluster(name, options = {}) {
         var db = await this._orbitdb.create(name, "aviondb", {
             overwrite: true,
+            type: "orbitdb",
             accessController: {
                 write: [
-                    "*"
+                    this._orbitdb.identity //Only allow writes from this node until symmetric key authentication can be used.
                 ]
             }
         });
