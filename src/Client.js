@@ -7,6 +7,7 @@ const Path = require('path')
 var debug = require('debug')('pinza:client');
 const AvionDb = require('aviondb'); //Keep Import to add aviondb to orbitdb class; TODO remove work around
 const LevelDb = require('datastore-level');
+const EventEmitter = require('events')
 
 
 class client {
@@ -21,7 +22,8 @@ class client {
             path: EnvironmentAdapter.repoPath()
         };
         this._options = mergeOptions(defaults, options);
-        this.config = new Components.Config(EnvironmentAdapter.datastore(this._options.path))
+        this.config = new Components.Config(EnvironmentAdapter.datastore(this._options.path));
+        this.events = new EventEmitter();
     }
     cluster(name) {
         if(!this.openClusters[name]) {
@@ -40,6 +42,27 @@ class client {
             address: address.toString()
         },this.config.set.cluster.get("defaultClusterConfig")))
         await this.openCluster(name);
+    }
+    /**
+     * leaves cluster and defaultly removes all associated data. 
+     * @param {String} name 
+     * @param {{clearData:Boolean}} options 
+     */
+    async leaveCluster(name, options = {}) {
+        if(!options.clearData) {
+            options.clearData = true
+        }        
+        var cluster_info = this.config.get(`clusters.${name}`);
+        debug(`Leaving cluster with address of ${cluster_info.address}`)
+        if(options.clearData === true) {
+            var cluster = await this.openCluster(name); //Make sure cluster is open to begin with.
+            var commitment = await cluster.pin.currentCommitment();
+            for(var pin in commitment) {
+                await cluster.pin._rm(pin)
+            }
+            await cluster.stop();
+        }
+        this.config.set(`clusters.${name}`, undefined); //Remove from config file
     }
     async createCluster(name, options = {}) {
         var db = await this._orbitdb.create(name, "aviondb", {
