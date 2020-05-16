@@ -9,7 +9,6 @@ const AvionDb = require('aviondb'); //Keep Import to add aviondb to orbitdb clas
 const LevelDb = require('datastore-level');
 const EventEmitter = require('events')
 
-
 class client {
     constructor(ipfs, options) {
         this._ipfs = ipfs;
@@ -25,6 +24,11 @@ class client {
         this.config = new Components.Config(EnvironmentAdapter.datastore(this._options.path));
         this.events = new EventEmitter();
     }
+    /**
+     * Returns instance of cluster if open. throws error if cluster is not opne.
+     * @param {String} name
+     * @returns {Cluster}
+     */
     cluster(name) {
         if(!this.openClusters[name]) {
             throw "Cluster not opened"
@@ -32,6 +36,13 @@ class client {
             return this.openClusters[name];
         }
     }
+    /**
+     * Joins a pinza cluster. 
+     * Data present on cluster will be eventually synced to this node depending on cluster settings.
+     * @param {String} name 
+     * @param {String} address 
+     * @returns {Promise<null>}
+     */
     async joinCluster(name, address) {
         var clusters = await this.listClusters();
         if(clusters[name]) {
@@ -64,7 +75,19 @@ class client {
         }
         this.config.set(`clusters.${name}`, undefined); //Remove from config file
     }
+    /**
+     * Creates a new cluster
+     * @param {String} name 
+     * @param {{overwrite:Boolean}} options 
+     * @returns {Promise<Cluster>} Cluster instance
+     */
     async createCluster(name, options = {}) {
+        if(!options.overwrite) {
+            options.overwrite = false;
+        }
+        if(this.config.get(`clusters.${name}`) && options.overwrite !== true) {
+            throw "Cluster already exists"
+        }
         var db = await this._orbitdb.create(name, "aviondb", {
             overwrite: true,
             type: "orbitdb",
@@ -92,14 +115,25 @@ class client {
 
         return cluster;
     }
+    /**
+     * Opens a cluster instance. 
+     * @param {String} name name of cluster
+     * @param {{create:Boolean}} options 
+     * @returns {Promise<Cluster>} Cluster instance
+     */
     async openCluster(name, options = {}) {
+        if(!options.create) {
+            options.create = false;
+        }
         if(this.openClusters[name]) {
             return this.openClusters[name]
         }
         var cluster_info = this.config.get(`clusters.${name}`);
 
-        if(!cluster_info) {
+        if(!cluster_info && options.create !== true) {
             throw `Cluster with name of ${name} does not exist`;
+        } else if(options.create === true) {
+            return await this.createCluster(name, options)
         }
         var db = await this._orbitdb.open(cluster_info.address);
         db._orbitdb = this._orbitdb;
@@ -113,12 +147,23 @@ class client {
         this.openClusters[name] = cluster;
         return cluster;
     }
+    /**
+     * Lists clusters tracked by this node.
+     * @returns {Promise{}}
+     */
     async listClusters() {
         return this.config.get("clusters")
     }
+    /**
+     * Initalizes repo and configuration
+     */
     async init() {
         await this.config.init()
     }
+    /**
+     * Starts client, orbitdb.
+     * Loads and starts clusters into memory.
+     */
     async start() {
         await this.config.open()
         this._orbitdb = await Orbitdb.createInstance(this._ipfs, {
@@ -126,10 +171,17 @@ class client {
         });
         var clusters = this.config.get("clusters");
         for (var cluster_name in clusters) {
+            debug(`opening cluster: ${cluster_name}`)
             this.openClusters[cluster_name] = await this.openCluster(cluster_name)
+            await this.openClusters[cluster_name].start()
         }
     }
+    /**
+     * Stops client, orbitdb.
+     * stops, and unloads clusters from memory.
+     */
     async stop() {
+        debug(`Stopping`)
         for(var cluster of Object.values(this.openClusters)) {
             await cluster.stop();
         }

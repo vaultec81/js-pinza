@@ -7,6 +7,10 @@ const CID = require('cids')
 const {default: PQueue} = require('p-queue');
 const dagCbor = require('ipld-dag-cbor')
 
+/**
+ * Pinza file health management system
+ * Health is a metric of how many nodes on the Pinza cluster is actively storing the data.
+ */
 class Health {
     constructor(cluster) {
 
@@ -24,6 +28,12 @@ class Pin {
         this.cluster = cluster;
         this.opQueue = new PQueue({concurrency: 1});
     }
+    /**
+     * Pins CID to cluster
+     * @param {CID|String} cid 
+     * @param {Object} meta 
+     * @param {{bypass}} options 
+     */
     async add(cid, meta = {}, options = {}) {
         const {bypass} = options;
         cid = new CID(cid);
@@ -41,12 +51,21 @@ class Pin {
             type: "ipfs"
         })
     }
+    /**
+     * Remove CID from cluster
+     * @param {CID|String} cid 
+     * @param {*} options 
+     */
     async rm(cid, options) {
         cid = new CID(cid);
         await this.cluster.collection.findOneAndDelete({
             cid: cid.toString()
         })
     }
+    /**
+     * Private pinning method
+     * @param {CID|String} cid
+     */
     async _add(cid) {
         debug(`pinning ${cid} to ipfs`)
         await this.cluster._ipfs.pin.add(cid);
@@ -56,9 +75,17 @@ class Pin {
             stat: object_info
         }))
     }
+    /**
+     * Private unpinning method
+     * @param {CID|String} cid 
+     */
     async _rm(cid) {
         await this.cluster._ipfs.pin.rm(cid);
     }
+    /**
+     * Retrieves the current pin commitment for this node
+     * @returns {Promise}
+     */
     async currentCommitment() {
         var out = {};
         for await(var entry of this.cluster.datastore.query({prefix:"/commited"})) {
@@ -72,7 +99,8 @@ class Pin {
         return out;
     }
     /**
-     * 
+     * Sets the pin commitment. Calcuation metric for allocating commitment can be any abstract system.
+     * This shouldn't need to be called normally. Called by default sharding system.
      * @param {CID[]} commitment 
      */
     async setCommitment(commitment) {
@@ -93,6 +121,10 @@ class Pin {
         }
         
     }
+    /**
+     * Lists CIDs that have been imported into this node.
+     * @returns {Promise<CID>}
+     */
     async ls() {
         var pins = [];
         for await(var entry of this.cluster.datastore.query({pattern: "/pins"})) {
@@ -126,6 +158,10 @@ class Sharding {
             });
         }
     }
+    /**
+     * Adds CID disk datastore for tracking
+     * @param {CID|String} ipfsHash 
+     */
     async add(ipfsHash) {
         var cid = (new CID(ipfsHash)).toString();
         this._add(ipfsHash);
@@ -134,6 +170,10 @@ class Sharding {
             await this.datastore.put(new Key(`pins/${cid}`), "");
         }
     }
+    /**
+     * Adds CID to Sharding k-bucket
+     * @param {CID|String} ipfsHash 
+     */
     _add(ipfsHash) {
         try {
             ipfsHash = (new CID(ipfsHash)).multihash
@@ -146,11 +186,20 @@ class Sharding {
             ipfsHash
         })
     }
+    /**
+     * Removes CID from localstore
+     * @param {CID} ipfsHash 
+     * @returns {Promies<null>}
+     */
     async del(ipfsHash) {
         var mhash = multihash.decode(ipfsHash)
         this.bucket.remove(mhash.digest);
         await this.datastore.del(new Key(`${mhash.toString()}`), "");
     }
+    /**
+     * Resets in memory k-bucket. 
+     * This shouldn't need to be called normally. Used when commitment is being updated.
+     */
     reset() {
         delete this.bucket;
         var {nodeId} = this.options;
@@ -166,7 +215,7 @@ class Sharding {
         }
     }
     /**
-     * Generates list of CIDs that this node is responsible for storing.
+     * Returns list of CIDs this node is responsible in storing.
      * @param {Number} replication_factor 
      * @param {Number} nNodes
      * @returns {CID[]}
@@ -183,6 +232,10 @@ class Sharding {
         }
         return out;
     }
+    /**
+     * Returns total size of bucket
+     * @returns {Number}
+     */
     count() {
         return this.bucket.count()
     }
@@ -199,7 +252,7 @@ class Sharding {
 }
 class Cluster {
     /**
-     * 
+     * Pinza cluster constructor
      * @param {*} ipfs 
      * @param {} db 
      * @param {*} config 
@@ -214,12 +267,23 @@ class Cluster {
         this.pin = new Pin(this);
         this.sharding = new Sharding(datastore);
     }
+    /**
+     * Returns OrbitDB ID of this cluster
+     */
     get id() {
         return this.db.address;
     }
+    /**
+     * Returns String version of OrbitDB ID of this cluster
+     * @returns {String}
+     */
     get address() {
         return this.db.address.toString()
     }
+    /**
+     * Exports entire pinset
+     * @param {{format:String}} options 
+     */
     async export(options = {}) {
         if(!options.format) {
             options.format = "json"
@@ -240,6 +304,11 @@ class Cluster {
             return out;
         }
     }
+    /**
+     * Imports pinset to cluster
+     * @param {*} in_object 
+     * @param {{format:String, clear:Boolean}} options 
+     */
     async import(in_object, options = {}) {
         var {progressHandler} = options;
         if(!options.format) {
