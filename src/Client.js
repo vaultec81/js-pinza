@@ -88,12 +88,14 @@ class client {
         if(this.config.get(`clusters.${name}`) && options.overwrite !== true) {
             throw "Cluster already exists"
         }
+        if(!name) {
+            throw "Name is a required argument"
+        }
         var db = await this._orbitdb.create(name, "aviondb", {
             overwrite: true,
-            type: "orbitdb",
             accessController: {
                 write: [
-                    this._orbitdb.identity //Only allow writes from this node until symmetric key authentication can be used.
+                    this._orbitdb.identity.id //Only allow writes from this node until symmetric key authentication can be used. Or add access dynamically through orbitdb AC
                 ]
             }
         });
@@ -102,7 +104,6 @@ class client {
         await db.createCollection("pins", {
             overwrite: true
         });
-
         debug(`Creating cluster with ID of ${db.address.toString()}`)
         var cluster = new Cluster(this._ipfs, db, this.config.child(`clusters.${db.address.path}`),
             new LevelDb(Path.join(this._options.path, "clusters", db.address.root)));

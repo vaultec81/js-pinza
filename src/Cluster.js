@@ -63,6 +63,22 @@ class Pin {
         })
     }
     /**
+     * Checks whether a CID is pinned to the cluster
+     * @param {CID|String}
+     * @returns {Boolean}
+     */
+    async has(cid) {
+        cid = new CID(cid);
+        var result = await this.cluster.collection.findOne({
+            cid: cid.toString()
+        })
+        if(result) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    /**
      * Private pinning method
      * @param {CID|String} cid
      */
@@ -120,6 +136,22 @@ class Pin {
             }
         }
         
+    }
+    /**
+     * Checks whether a CID has been commited to this node.
+     * @param {CID|String} cid 
+     * @returns {Boolean}
+     */
+    async hasCommit(cid) {
+        var digest = new CID(cid).multihash;
+        var result = false;
+        for await(var entry of this.cluster.datastore.query({prefix:"/commited"})) {
+            const {key, value} = entry;
+            if(key.baseNamespace() === digest.toString()) {
+                result = true;
+            }
+        }
+        return result;
     }
     /**
      * Lists CIDs that have been imported into this node.
@@ -194,11 +226,11 @@ class Sharding {
     async del(ipfsHash) {
         var mhash = multihash.decode(ipfsHash)
         this.bucket.remove(mhash.digest);
-        await this.datastore.del(new Key(`${mhash.toString()}`), "");
+        await this.datastore.del(new Key(`pins/${mhash.toString()}`), "");
     }
     /**
      * Resets in memory k-bucket. 
-     * This shouldn't need to be called normally. Used when commitment is being updated.
+     * This shouldn't need to be called normally. Used when pins is being updated.
      */
     reset() {
         delete this.bucket;
@@ -286,12 +318,14 @@ class Cluster {
      */
     async export(options = {}) {
         if(!options.format) {
-            options.format = "json"
+            options.format = "raw"
             //options.format = "cbor"
-            //options.format = "raw"
+            //options.format = "json"
         }
         var pins = await this.collection.find({});
-        
+        pins.forEach(e => {
+            delete e._id
+        })
         var out = {
             pins,
             size: pins.length
@@ -312,7 +346,9 @@ class Cluster {
     async import(in_object, options = {}) {
         var {progressHandler} = options;
         if(!options.format) {
-            options.format = "json"
+            options.format = "raw"
+            //options.format = "json"
+            //options.format = "cbor"
         }
         if(options.format === "json") {
             in_object = JSON.parse(in_object)
