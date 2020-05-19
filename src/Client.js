@@ -174,7 +174,6 @@ class client {
         for (var cluster_name in clusters) {
             debug(`opening cluster: ${cluster_name}`)
             this.openClusters[cluster_name] = await this.openCluster(cluster_name)
-            await this.openClusters[cluster_name].start()
         }
     }
     /**
