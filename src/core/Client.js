@@ -7,7 +7,7 @@ const Path = require('path')
 var debug = require('debug')('pinza:client');
 const AvionDb = require('aviondb'); //Keep Import to add aviondb to orbitdb class; TODO remove work around
 const LevelDb = require('datastore-level');
-const EventEmitter = require('events')
+const EventEmitter = require('events');
 
 class client {
     constructor(ipfs, options) {
