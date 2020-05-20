@@ -1,3 +1,4 @@
 module.exports = [
-    ...require("./cluster")
+    ...require("./cluster"),
+    ...require('./config')
 ]
