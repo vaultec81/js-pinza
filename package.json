@@ -26,6 +26,7 @@
     "multihashes": "^0.4.15",
     "orbit-db": "^0.23.1",
     "uri-to-multiaddr": "^3.0.2",
+    "tmp": "^0.2.1",
     "yargs": "^15.3.1"
   },
   "devDependencies": {
