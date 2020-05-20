@@ -1,8 +1,10 @@
 const debug = require('debug')('pinza:daemon')
-const Pinza = require('../Client'); //Pinza client.
-const Components = require('../Components')
+const Pinza = require('../core/Client'); //Pinza client.
+const Components = require('../core/Components')
 const IPFSApiClient = require('ipfs-http-client')
 const endpoints = require('./apiEndpoints')
+const Path = require('path')
+const fs = require('fs')
 
 class Daemon {
   constructor(options) {
@@ -31,10 +33,14 @@ class Daemon {
     await this.client.start();
     this.apiEndpoints = new endpoints(this.client)
     await this.apiEndpoints.start();
+    this._apiEndpoints((endpointAddress, endpointName) => {
+      fs.writeFileSync(Path.join(this.repoPath, "apiAddr"), endpointAddress.toString())
+  })
   }
   async stop() {
     await this.apiEndpoints.stop();
     await this.client.stop();
+    fs.unlinkSync(Path.join(this.repoPath, "apiAddr"))
   }
 }
 module.exports = Daemon
