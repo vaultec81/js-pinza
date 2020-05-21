@@ -8,6 +8,8 @@ var debug = require('debug')('pinza:client');
 const AvionDb = require('aviondb'); //Keep Import to add aviondb to orbitdb class; TODO remove work around
 const LevelDb = require('datastore-level');
 const EventEmitter = require('events');
+Orbitdb.addDatabaseType("aviondb.collection", require('aviondb/src/Collection'))
+Orbitdb.addDatabaseType("aviondb", AvionDb)
 
 class client {
     constructor(ipfs, options) {
@@ -41,18 +43,37 @@ class client {
      * Data present on cluster will be eventually synced to this node depending on cluster settings.
      * @param {String} name 
      * @param {String} address 
+     * @param {{start:Boolean, overwrite:Boolean}} options
      * @returns {Promise<null>}
      */
-    async joinCluster(name, address) {
+    async joinCluster(name, address, options) {
+        if(!options.start) {
+            options.start = true;
+        }
+        if(!options.overwrite) {
+            //Overwriting is not recommeded. However, support is still available.
+            options.overwrite = false;
+        }
         var clusters = await this.listClusters();
-        if(clusters[name]) {
+        if(clusters[name] && options.overwrite !== true) {
             throw `Cluster already exists with name of ${name}`;
+        } else if(clusters[name]) {
+            //Make sure cluster is not already open.
+            if(this.openClusters[name]) {
+                await this.openClusters[name].stop();
+            }
+            delete this.openClusters[name];
         }
         //TODO: pull settings directly from other peers.
         this.config.set(`clusters.${name}`, Object.assign({
             address: address.toString()
-        },this.config.set.cluster.get("defaultClusterConfig")))
-        await this.openCluster(name);
+        }, this.config.set.cluster.get("defaultClusterConfig")))
+        if(this.config.get("defaultCluster") === "") {
+            this.config.set("defaultCluster", name)
+        }
+        if(options.start) {
+            await this.openCluster(name);
+        }
     }
     /**
      * leaves cluster and defaultly removes all associated data. 
@@ -113,6 +134,10 @@ class client {
         this.config.set(`clusters.${name}`, Object.assign({
             address: db.address.toString()
         },this.config.get("defaultClusterConfig")))
+
+        if(this.config.get("defaultCluster") === "") {
+            this.config.set("defaultCluster", name)
+        }
 
         return cluster;
     }
