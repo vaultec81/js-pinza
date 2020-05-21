@@ -40,7 +40,7 @@ async function main() {
           ...ctx,
           pinza,
           isDaemon,
-          cleanup
+          //cleanup
         }
       }
 

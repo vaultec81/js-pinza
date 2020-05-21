@@ -1,4 +1,8 @@
-const EnvironmentAdapter = require('../EnvironmentAdapter')
+const EnvironmentAdapter = require('../core/EnvironmentAdapter')
+const HTTPClient = require('../HTTPClient')
+const fs = require('fs')
+const Path = require('path')
+const multiaddr = require('multiaddr')
 let visible = true
 const disablePrinting = () => { visible = false }
 
@@ -41,5 +45,15 @@ module.exports = {
             return EnvironmentAdapter.repoPath()
         }
     },
-    print
+    print,
+    getPinza: () => {
+        var repoPath = module.exports.getRepoPath()
+        var apiAddr = multiaddr(fs.readFileSync(Path.join(repoPath, "apiAddr")).toString());
+        var pinza = new HTTPClient(apiAddr);
+
+        return {
+            pinza,
+            isDaemon: false
+        }
+    }
 }
