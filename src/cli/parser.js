@@ -1,10 +1,12 @@
-const yargs = require('yargs/yargs')(process.argv.slice(2))
+const args = process.argv.slice(2);
+const yargs = require('yargs/yargs')(args)
 const parser = yargs
-  .demandCommand(1)
-  .showHelpOnFail(false)
   .commandDir('commands')
-  .help()
+  .showHelpOnFail(true)
   .strict()
   .completion();
 
+if(args.length === 0) {
+  yargs.showHelp()
+}
 module.exports = parser;
