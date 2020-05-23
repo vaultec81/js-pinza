@@ -48,12 +48,17 @@ module.exports = {
     print,
     getPinza: () => {
         var repoPath = module.exports.getRepoPath()
-        var apiAddr = multiaddr(fs.readFileSync(Path.join(repoPath, "apiAddr")).toString());
-        var pinza = new HTTPClient(apiAddr);
-
-        return {
-            pinza,
-            isDaemon: false
+        var apiPath = Path.join(repoPath, "apiAddr");
+        if(fs.existsSync(apiPath)) {
+            var apiAddr = multiaddr(fs.readFileSync(apiPath).toString());
+            var pinza = new HTTPClient(apiAddr);
+    
+            return {
+                pinza,
+                isDaemon: false
+            }
+        } else {
+            throw `apiAddr does not exist at "${apiPath}" \nforgot to run "pinza daemon"?`
         }
     }
 }
