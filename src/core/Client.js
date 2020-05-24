@@ -46,7 +46,7 @@ class client {
      * @param {{start:Boolean, overwrite:Boolean}} options
      * @returns {Promise<null>}
      */
-    async joinCluster(name, address, options) {
+    async joinCluster(name, address, options = {}) {
         if(!options.start) {
             options.start = true;
         }
@@ -67,7 +67,7 @@ class client {
         //TODO: pull settings directly from other peers.
         this.config.set(`clusters.${name}`, Object.assign({
             address: address.toString()
-        }, this.config.set.cluster.get("defaultClusterConfig")))
+        }, this.config.get("defaultClusterConfig")))
         if(this.config.get("defaultCluster") === "") {
             this.config.set("defaultCluster", name)
         }
