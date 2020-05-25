@@ -64,6 +64,11 @@ class client {
             }
             delete this.openClusters[name];
         }
+        for(var cluster of Object.values(clusters)) {
+            if(cluster.address === address) {
+                throw `Cluster already exists with same address`;
+            }
+        }
         //TODO: pull settings directly from other peers.
         this.config.set(`clusters.${name}`, Object.assign({
             address: address.toString()
