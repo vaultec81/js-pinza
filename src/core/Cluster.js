@@ -27,6 +27,7 @@ class Pin {
     constructor(cluster) {
         this.cluster = cluster;
         this.opQueue = new PQueue({concurrency: 1});
+        this.db = cluster.db;
     }
     /**
      * Pins CID to cluster
@@ -37,7 +38,7 @@ class Pin {
     async add(cid, meta = {}, options = {}) {
         const {bypass} = options;
         cid = new CID(cid);
-        var record = await this.cluster.collection.findOne({
+        var record = await this.collection.findOne({
             cid: cid.toString()
         })
         if(record && !bypass) {
@@ -45,7 +46,7 @@ class Pin {
         } else if(bypass === true) {
             return;
         }
-        await this.cluster.collection.insertOne({
+        await this.collection.insertOne({
             meta,
             cid: cid.toString(),
             type: "ipfs"
@@ -58,7 +59,7 @@ class Pin {
      */
     async rm(cid, options) {
         cid = new CID(cid);
-        await this.cluster.collection.findOneAndDelete({
+        await this.db.findOneAndDelete({
             cid: cid.toString()
         })
     }
@@ -69,7 +70,7 @@ class Pin {
      */
     async has(cid) {
         cid = new CID(cid);
-        var result = await this.cluster.collection.findOne({
+        var result = await this.db.findOne({
             cid: cid.toString()
         })
         if(result) {
@@ -166,7 +167,7 @@ class Pin {
         return pins;
     }
     async start() {
-        this.collection = this.cluster.db.collection("pins")
+
     }
     async stop() {
         this.opQueue.pause()
@@ -372,13 +373,13 @@ class Cluster {
         }
     }
     async start() {
+        await this.pin.start()
         await this.sharding.start();
-        this.collection = this.db.collection("pins")
 
         //Reindex every 60 seconds
         this.reindex_pid = setInterval(async() => {
             debug(`Querying datastore for changes`);
-            var result = await this.collection.distinct("cid")
+            var result = await this.db.distinct("cid")
             this.sharding.reset()
             result.forEach(item => {
                 this.sharding.add(item)

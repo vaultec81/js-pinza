@@ -119,7 +119,7 @@ class client {
         if(!name) {
             throw "Name is a required argument"
         }
-        var db = await this._orbitdb.create(name, "aviondb", {
+        var db = await this._orbitdb.create(name, "aviondb.collection", {
             overwrite: true,
             accessController: {
                 write: [
@@ -129,9 +129,6 @@ class client {
         });
         db._orbitdb = this._orbitdb
 
-        await db.createCollection("pins", {
-            overwrite: true
-        });
         debug(`Creating cluster with ID of ${db.address.toString()}`)
         var cluster = new Cluster(this._ipfs, db, this.config.child(`clusters.${db.address.path}`),
             new LevelDb(Path.join(this._options.path, "clusters", db.address.root)));
