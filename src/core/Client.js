@@ -8,6 +8,8 @@ var debug = require('debug')('pinza:client');
 const AvionDb = require('aviondb'); //Keep Import to add aviondb to orbitdb class; TODO remove work around
 const LevelDb = require('datastore-level');
 const EventEmitter = require('events');
+const fs = require('fs');
+const ErrorCodes = require('./ErrorCodes');
 Orbitdb.addDatabaseType("aviondb.collection", require('aviondb/src/Collection'))
 Orbitdb.addDatabaseType("aviondb", AvionDb)
 
@@ -189,13 +191,32 @@ class client {
      * Initalizes repo and configuration
      */
     async init() {
-        await this.config.init()
+        if(fs.existsSync(this._options.path)) {
+            var error = new Error("Repo already initialized");
+            error.code = ErrorCodes.ERR_repo_already_initialized;
+            throw error;
+        }
+        fs.mkdirSync(this._options.path)
+        fs.mkdirSync(Path.join(this._options.path), "clusters")
+        await this.config.init();
     }
     /**
      * Starts client, orbitdb.
      * Loads and starts clusters into memory.
      */
     async start() {
+        if(!fs.existsSync(this._options.path)) {
+            var error = new Error("Repo not initialized");
+            error.code = ErrorCodes.ERR_repo_not_initialized;
+            throw error;
+        }
+        //Using file based repo lock as any other system is not neccessary for now.
+        if(fs.existsSync(Path.join(this._options.path, "repo.lock"))) {
+            var error = new Error("repo.lock exists, daemon may be already running");
+            error.code = ErrorCodes.ERR_repo_locked;
+            throw error;
+        }
+        fs.writeFileSync(Path.join(this._options.path, "repo.lock"), "");
         await this.config.open()
         this._orbitdb = await Orbitdb.createInstance(this._ipfs, {
             directory: Path.join(this._options.path, "orbitdb")
@@ -216,6 +237,7 @@ class client {
             await cluster.stop();
         }
         await this._orbitdb.stop()
+        fs.unlinkSync(Path.join(this._options.path, "repo.lock"));
     }
 }
 module.exports = client;

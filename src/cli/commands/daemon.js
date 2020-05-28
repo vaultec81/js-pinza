@@ -3,6 +3,7 @@
 
 const os = require('os')
 const fs = require('fs')
+const ErrorCodes = require('../../core/ErrorCodes')
 //const toUri = require('multiaddr-to-uri')
 const { getRepoPath } = require('../utils')
 const debug = require('debug')('pinza:cli:daemon')
@@ -46,6 +47,10 @@ module.exports = {
                 print(`${endpointName} listening on ${endpointAddress.toString()}`)
             })
         } catch (err) {
+            if(err.code === ErrorCodes.ERR_repo_not_initialized) {
+                print('no initialized Pinza repo found in ' + repoPath + '\nplease run: pinza init')
+                return;
+            }
             throw err
         }
 
