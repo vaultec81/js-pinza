@@ -26,6 +26,12 @@ module.exports = [
     },
     {
         method: 'POST',
+        path: '/api/v0/cluster/pin/ls',
+        options: {},
+        handler: resources.cluster.pinls.handler
+    },
+    {
+        method: 'POST',
         path: '/api/v0/cluster/export',
         options: {},
         handler: resources.cluster.export.handler

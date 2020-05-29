@@ -1,3 +1,4 @@
+const ErrorCodes = require('../../../../core/ErrorCodes')
 exports.myCommitment = {
     async handler(request, h) {
         const { pinza } = request.server.app;
@@ -103,5 +104,37 @@ exports.ls = {
         const { pinza } = request.server.app;
         const { cluster } = request.payload;
 
+exports.pinls = {
+    async handler(request, h) {
+        const { pinza } = request.server.app;
+        var { cluster, options } = request.payload;
+        if (!cluster) {
+            cluster = pinza.config.get("defaultCluster")
+        }
+        try {
+            return h.response({
+                success: true,
+                payload: await pinza.cluster(cluster).pin.ls(options)
+            })
+        } catch (err) {
+            if(err.code) {
+                return h.response({
+                    success: false,
+                    err: {
+                        message: err.message,
+                        code: err.code
+                    }
+                })
+            } else {
+                console.log(err); //Print error to CLI. TODO: add logging feature
+                return h.response({
+                    success: false,
+                    err: {
+                        message: err.message,
+                        code: ErrorCodes.InternalServerError
+                    }
+                })
+            }
+        }
     }
 }

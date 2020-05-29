@@ -85,7 +85,12 @@ class Pin {
      */
     async _add(cid) {
         debug(`pinning ${cid} to ipfs`)
-        await this.cluster._ipfs.pin.add(cid);
+        try {
+            await this.cluster._ipfs.pin.add(cid);
+        } catch(err) {
+            console.log(err)
+            return
+        }
         var object_info = await this.cluster._ipfs.object.stat(cid)
         delete object_info.Hash
         await this.cluster.datastore.put(`/commited/${cid}`, dagCbor.util.serialize({
@@ -156,13 +161,21 @@ class Pin {
     }
     /**
      * Lists CIDs that have been imported into this node.
-     * @returns {Promise<CID>}
+     * @param {{size:Boolean}} options
+     * @returns {Promise<[]>}
      */
-    async ls() {
+    async ls(options = {}) {
+        if(!options.size) {
+            options.size = false;
+        }
         var pins = [];
-        for await(var entry of this.cluster.datastore.query({pattern: "/pins"})) {
-            var {key, value} = entry;
-            pins.push(key.baseNamespace());
+        for(var e of await this.db.find({})) {
+            delete e._id
+            if(options.size) {
+                var stat = await this.cluster._ipfs.object.stat(e.cid);
+                e.size = stat.CumulativeSize
+            }
+            pins.push(e)
         }
         return pins;
     }
