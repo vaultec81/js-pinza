@@ -38,7 +38,7 @@ class Pin {
     async add(cid, meta = {}, options = {}) {
         const {bypass} = options;
         cid = new CID(cid);
-        var record = await this.collection.findOne({
+        var record = await this.db.findOne({
             cid: cid.toString()
         })
         if(record && !bypass) {
@@ -46,7 +46,7 @@ class Pin {
         } else if(bypass === true) {
             return;
         }
-        await this.collection.insertOne({
+        await this.db.insertOne({
             meta,
             cid: cid.toString(),
             type: "ipfs"
@@ -336,7 +336,7 @@ class Cluster {
             //options.format = "cbor"
             //options.format = "json"
         }
-        var pins = await this.collection.find({});
+        var pins = await this.db.find({});
         pins.forEach(e => {
             delete e._id
         })
@@ -373,7 +373,7 @@ class Cluster {
         }
         if(options.clear === true) {
             //TODO proper system to drop the collection using what is defined in aviondb.
-            //await this.collection.drop()
+            //await this.db.drop()
         }
         var totalDone = 0;
         for(var pin of in_object.pins) {

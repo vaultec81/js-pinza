@@ -8,10 +8,18 @@ exports.myCommitment = {
         }
         try {
             var Cluster = pinza.cluster(cluster)
-            console.log(await Cluster.pin.currentCommitment(r, n))
-            return h.response(await Cluster.pin.currentCommitment(r, n))
+            return h.response({
+                success: true,
+                payload: await Cluster.pin.currentCommitment(r, n)
+            })
         } catch (err) {
-            console.log(err)
+            return h.response({
+                success: false,
+                err: {
+                    message: err.message,
+                    code: err.code
+                }
+            })
         }
     }
 }
@@ -27,7 +35,11 @@ exports.pin = {
             });
         } catch (err) {
             return h.response({
-                success: false
+                success: false,
+                err: {
+                    message: err.toString(),
+                    code: err.code
+                }
             })
         }
     }
@@ -37,22 +49,79 @@ exports.unpin = {
         const { pinza } = request.server.app;
         const { cluster, cid } = request.payload
         var Cluster = pinza.cluster(cluster)
-        await Cluster.pin.rm(cid)
-        return h.response({});
+        try {
+            await Cluster.pin.rm(cid)
+        } catch (err) {
+            return h.response({
+                err: {
+                    code: err.code,
+                    message: err.message
+                },
+                success: false
+            });
+        }
     }
 }
 exports.join = {
     async handler(request, h) {
         const { pinza } = request.server.app;
-        const { cluster } = request.query
-        return h.response({});
+        const { name, address, options } = request.payload
+        try {
+            await pinza.joinCluster(name, address, options);
+            return h.response({
+                success: true
+            });
+        } catch (err) {
+            if (err) {
+                return h.response({
+                    success: false,
+                    err: {
+                        message: err.toString(),
+                        code: err.code
+                    }
+                });
+            }
+        }
     }
 }
 exports.leave = {
     async handler(request, h) {
         const { pinza } = request.server.app;
-        const { cluster } = request.query
-        return h.response({});
+        const { name, options } = request.payload;
+        try {
+            await pinza.leaveCluster(name, options);
+            return h.response({
+                success: true
+            });
+        } catch (err) {
+            return h.response({
+                success: false,
+                err: {
+                    message: err.message,
+                    code: err.code
+                }
+            });
+        }
+    }
+}
+exports.open = {
+    async handler(request, h) {
+        const { pinza } = request.server.app;
+        const { name, options } = request.payload;
+        try {
+            await pinza.openCluster(name, options);
+            return h.response({
+                success: true
+            });
+        } catch (err) {
+            return h.response({
+                success: false,
+                err: {
+                    message: err.message,
+                    code: err.code
+                }
+            });
+        }
     }
 }
 exports.create = {
@@ -61,48 +130,89 @@ exports.create = {
         const { name, options } = request.payload;
         try {
             await pinza.createCluster(name, options)
+            return h.response({
+                success: true,
+                payload: pinza.config.get(`clusters.${name}`)
+            })
         } catch (err) {
-            console.log(err)
             if (err.code) {
                 return h.response({
                     success: false,
-                    err: err.toString(),
-                    code: err.code
+                    err: {
+                        message: err.toString(),
+                        code: err.code
+                    }
                 })
             } else {
                 return h.response({
                     success: false,
-                    err: err.toString()
+                    err: {
+                        message: err.toString(),
+                        code: err.code
+                    }
                 })
             }
         }
-        return h.response({
-            success: true,
-            payload: pinza.config.get(`clusters.${name}`)
-        })
     }
 }
 exports.export = {
     async handler(request, h) {
         const { pinza } = request.server.app;
-        const { cluster } = request.payload;
+        var { cluster, options } = request.payload;
         if (!cluster) {
             cluster = pinza.config.get("defaultCluster")
         }
         try {
             return h.response({
                 success: true,
-                payload: await pinza.cluster(cluster).export()
+                payload: await pinza.cluster(cluster).export(options)
             })
         } catch (err) {
-            console.log(err)
+            return h.response({
+                success: false,
+                err: {
+                    message: err.toString(),
+                    code: err.code
+                }
+            })
         }
     }
 }
-exports.ls = {
+exports.import = {
     async handler(request, h) {
         const { pinza } = request.server.app;
-        const { cluster } = request.payload;
+        var { cluster, input, options } = request.payload;
+        if (!cluster) {
+            cluster = pinza.config.get("defaultCluster")
+        }
+        try {
+            await pinza.cluster(cluster).import(input, options)
+            return h.response({
+                success: true
+            })
+        } catch (err) {
+            if(err.code) {
+                return h.response({
+                    success: false,
+                    err: {
+                        message: err.message,
+                        code: err.code
+                    }
+                })
+                
+            } else {
+                console.log(err); //Print error to CLI. TODO: add logging feature
+                return h.response({
+                    success: false,
+                    err: {
+                        message: err.message,
+                        code: ErrorCodes.InternalServerError
+                    }
+                })
+            }
+        }
+    }
+}
 
 exports.pinls = {
     async handler(request, h) {

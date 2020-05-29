@@ -14,6 +14,24 @@ module.exports = [
     },
     {
         method: 'POST',
+        path: '/api/v0/cluster/join',
+        options: {},
+        handler: resources.cluster.join.handler
+    },
+    {
+        method: 'POST',
+        path: '/api/v0/cluster/leave',
+        options: {},
+        handler: resources.cluster.leave.handler
+    },
+    {
+        method: 'POST',
+        path: '/api/v0/cluster/open',
+        options: {},
+        handler: resources.cluster.open.handler
+    },
+    {
+        method: 'POST',
         path: '/api/v0/cluster/pin/add',
         options: {},
         handler: resources.cluster.pin.handler

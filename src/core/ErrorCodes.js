@@ -9,6 +9,7 @@ const ErrorCodes = {
     ERR_missing_args: 8,
     ERR_write_denied: 9, //Used for orbitdb specific AC write rejection
     ERR_repo_not_initialized: 10,
-    ERR_repo_already_initialized: 11
+    ERR_repo_already_initialized: 11,
+    ERR_repo_locked: 12
 }
 module.exports = ErrorCodes;
