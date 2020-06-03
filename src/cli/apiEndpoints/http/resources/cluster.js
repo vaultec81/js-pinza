@@ -1,5 +1,5 @@
 const ErrorCodes = require('../../../../core/ErrorCodes')
-exports.myCommitment = {
+exports.currentCommitment = {
     async handler(request, h) {
         const { pinza } = request.server.app;
         const { cluster, r, n } = request.payload
@@ -26,12 +26,12 @@ exports.myCommitment = {
 exports.pin = {
     async handler(request, h) {
         const { pinza } = request.server.app;
-        const { cluster, cid } = request.payload
+        const { cluster, cid, meta = {}, options } = request.payload
         var Cluster = pinza.cluster(cluster)
         try {
-            await Cluster.pin.add(cid)
+            await Cluster.pin.add(cid, meta, options)
             return h.response({
-                success: true
+                success: true,
             });
         } catch (err) {
             return h.response({

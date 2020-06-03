@@ -2,9 +2,9 @@ const resources = require('../resources')
 module.exports = [
     {
         method: 'POST',
-        path: '/api/v0/cluster/mycommitment',
+        path: '/api/v0/cluster/pin/commitment',
         options: {},
-        handler: resources.cluster.myCommitment.handler
+        handler: resources.cluster.currentCommitment.handler
     },
     {
         method: 'POST',

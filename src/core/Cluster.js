@@ -1,11 +1,12 @@
 var debug = require('debug')('pinza:cluster');
 const kBucket = require('k-bucket');
 const InterfaceDatastore = require('interface-datastore')
-const {Key} = InterfaceDatastore
+const { Key } = InterfaceDatastore
 const multihash = require('multihashes')
 const CID = require('cids')
-const {default: PQueue} = require('p-queue');
+const { default: PQueue } = require('p-queue');
 const dagCbor = require('ipld-dag-cbor')
+const ErrCodes = require('./ErrorCodes')
 
 /**
  * Pinza file health management system
@@ -26,7 +27,7 @@ class Pin {
      */
     constructor(cluster) {
         this.cluster = cluster;
-        this.opQueue = new PQueue({concurrency: 1});
+        this.opQueue = new PQueue({ concurrency: 1 });
         this.db = cluster.db;
     }
     /**
@@ -36,16 +37,19 @@ class Pin {
      * @param {{bypass}} options 
      */
     async add(cid, meta = {}, options = {}) {
-        const {bypass} = options;
+        if (!options.bypass) {
+            options.bypass = false;
+        }
         cid = new CID(cid);
         var record = await this.db.findOne({
             cid: cid.toString()
         })
-        if(record && !bypass) {
-            throw `Pin with cid of ${cid.toString()} already exists`
-        } else if(bypass === true) {
-            return;
+        if (record && options.bypass === false) {
+            var err = new Error(`Pin with cid of ${cid.toString()} already exists`)
+            err.code = ErrCodes.ERR_Pin_already_exists;
+            throw err;
         }
+
         await this.db.insertOne({
             meta,
             cid: cid.toString(),
@@ -73,7 +77,7 @@ class Pin {
         var result = await this.db.findOne({
             cid: cid.toString()
         })
-        if(result) {
+        if (result) {
             return true;
         } else {
             return false;
@@ -87,7 +91,7 @@ class Pin {
         debug(`pinning ${cid} to ipfs`)
         try {
             await this.cluster._ipfs.pin.add(cid);
-        } catch(err) {
+        } catch (err) {
             console.log(err)
             return
         }
@@ -110,9 +114,9 @@ class Pin {
      */
     async currentCommitment() {
         var out = {};
-        for await(var entry of this.cluster.datastore.query({prefix:"/commited"})) {
-            const {key, value} = entry;
-            if(value.length !== 0) {
+        for await (var entry of this.cluster.datastore.query({ prefix: "/commited" })) {
+            const { key, value } = entry;
+            if (value.length !== 0) {
                 out[key.baseNamespace()] = dagCbor.util.deserialize(value)
             } else {
                 out[key.baseNamespace()] = {};
@@ -127,21 +131,20 @@ class Pin {
      */
     async setCommitment(commitment) {
         var currentCommitment = await this.currentCommitment()
-        for(var pin of commitment) {
-            if(!currentCommitment[pin.toString()]) {
+        for (var pin of commitment) {
+            if (!currentCommitment[pin.toString()]) {
                 await this.cluster.datastore.put(`/commited/${pin}`, "")
                 debug(`adding ${pin} to pinning queue`)
-                this.opQueue.add(async() => await this._add(pin))
+                this.opQueue.add(async () => await this._add(pin))
             }
         }
-        for(var pin in currentCommitment) {
-            if(!commitment.includes(pin.toString())) {
+        for (var pin in currentCommitment) {
+            if (!commitment.includes(pin.toString())) {
                 debug(`removing ${pin} from commitment`)
                 await this.cluster.datastore.delete(`/commited/${pin}`)
-                this.opQueue.add(async() => await this._rm(pin))
+                this.opQueue.add(async () => await this._rm(pin))
             }
         }
-        
     }
     /**
      * Checks whether a CID has been commited to this node.
@@ -151,9 +154,9 @@ class Pin {
     async hasCommit(cid) {
         var digest = new CID(cid).multihash;
         var result = false;
-        for await(var entry of this.cluster.datastore.query({prefix:"/commited"})) {
-            const {key, value} = entry;
-            if(key.baseNamespace() === digest.toString()) {
+        for await (var entry of this.cluster.datastore.query({ prefix: "/commited" })) {
+            const { key, value } = entry;
+            if (key.baseNamespace() === digest.toString()) {
                 result = true;
             }
         }
@@ -165,13 +168,13 @@ class Pin {
      * @returns {Promise<[]>}
      */
     async ls(options = {}) {
-        if(!options.size) {
+        if (!options.size) {
             options.size = false;
         }
         var pins = [];
-        for(var e of await this.db.find({})) {
+        for (var e of await this.db.find({})) {
             delete e._id
-            if(options.size) {
+            if (options.size) {
                 var stat = await this.cluster._ipfs.object.stat(e.cid);
                 e.size = stat.CumulativeSize
             }
@@ -180,7 +183,20 @@ class Pin {
         return pins;
     }
     async start() {
-
+        setInterval(() => {
+            for await (var entry of this.datastore.query({ pattern: "/commited", keysOnly: true })) {
+                const { key, value } = entry;
+                var cid = key.baseNamespace()
+                try {
+                    for await(var e of this.cluster._ipfs.pin.ls(cid, {
+                        type:"recursive"
+                    })) {}
+                } catch  {
+                    debug(`Pinning CID that wasn't detected in IPFS's pin list; CID is ${cid}`)
+                    this._add(cid)
+                }
+            }
+        }, 15 * 60 * 1000) //Run pin check cycle every 15 minutes
     }
     async stop() {
         this.opQueue.pause()
@@ -191,9 +207,9 @@ class Sharding {
     constructor(datastore, options = {}) {
         this.datastore = datastore;
         this.options = options;
-        
-        var {nodeId} = this.options;
-        if(nodeId) {
+
+        var { nodeId } = this.options;
+        if (nodeId) {
             this.bucket = new kBucket({
                 localNodeId: multihash.decode(multihash.fromB58String(nodeId)).digest,
                 numberOfNodesPerKBucket: 500
@@ -211,7 +227,7 @@ class Sharding {
     async add(ipfsHash) {
         var cid = (new CID(ipfsHash)).toString();
         this._add(ipfsHash);
-        if(!(await this.datastore.has(new Key(`pins/${cid}`)))) {
+        if (!(await this.datastore.has(new Key(`pins/${cid}`)))) {
             debug(`Adding new ipfsHash to datastore: ${cid}`);
             await this.datastore.put(new Key(`pins/${cid}`), "");
         }
@@ -248,8 +264,8 @@ class Sharding {
      */
     reset() {
         delete this.bucket;
-        var {nodeId} = this.options;
-        if(nodeId) {
+        var { nodeId } = this.options;
+        if (nodeId) {
             this.bucket = new kBucket({
                 localNodeId: multihash.decode(multihash.fromB58String(nodeId)).digest,
                 numberOfNodesPerKBucket: 500
@@ -268,12 +284,12 @@ class Sharding {
      */
     myCommitment(replication_factor = 1, nNodes = 1) {
         var count = this.count();
-        var allocated = Math.round((count/nNodes)*replication_factor);
-        if(allocated === 0) {
+        var allocated = Math.round((count / nNodes) * replication_factor);
+        if (allocated === 0) {
             allocated = 1;
         }
         var out = [];
-        for(var pin of this.bucket.closest(this.bucket.localNodeId, allocated)) {
+        for (var pin of this.bucket.closest(this.bucket.localNodeId, allocated)) {
             out.push(multihash.toB58String(pin.ipfsHash))
         }
         return out;
@@ -287,13 +303,13 @@ class Sharding {
     }
     async start() {
         debug("loading datastore")
-        for await(var entry of this.datastore.query({pattern:"/pins", keysOnly: true})) {
-            const {key, value} = entry;
+        for await (var entry of this.datastore.query({ pattern: "/pins", keysOnly: true })) {
+            const { key, value } = entry;
             this._add(key.baseNamespace())
         }
     }
     async stop() {
-        
+
     }
 }
 class Cluster {
@@ -306,7 +322,7 @@ class Cluster {
      */
     constructor(ipfs, db, config, datastore) {
         this._ipfs = ipfs;
-        
+
         this.db = db;
         this.config = config;
         this.datastore = datastore;
@@ -331,7 +347,7 @@ class Cluster {
      * @param {{format:String}} options 
      */
     async export(options = {}) {
-        if(!options.format) {
+        if (!options.format) {
             options.format = "raw"
             //options.format = "cbor"
             //options.format = "json"
@@ -344,11 +360,11 @@ class Cluster {
             pins,
             size: pins.length
         }
-        if(options.format === "json") {
+        if (options.format === "json") {
             return JSON.stringify(out)
-        } else if(options.format === "cbor") {
+        } else if (options.format === "cbor") {
             return dagCbor.util.serialize(out)
-        } else if(options.format === "raw") {
+        } else if (options.format === "raw") {
             return out;
         }
     }
@@ -358,29 +374,29 @@ class Cluster {
      * @param {{format:String, clear:Boolean}} options 
      */
     async import(in_object, options = {}) {
-        var {progressHandler} = options;
-        if(!options.format) {
+        var { progressHandler } = options;
+        if (!options.format) {
             options.format = "raw"
             //options.format = "json"
             //options.format = "cbor"
         }
-        if(options.format === "json") {
+        if (options.format === "json") {
             in_object = JSON.parse(in_object)
-        } else if(options.format === "cbor") {
+        } else if (options.format === "cbor") {
             in_object = dagCbor.util.deserialize(in_object)
-        } else if(options.format === "raw") {
-            
+        } else if (options.format === "raw") {
+
         }
-        if(options.clear === true) {
+        if (options.clear === true) {
             //TODO proper system to drop the collection using what is defined in aviondb.
             //await this.db.drop()
         }
         var totalDone = 0;
-        for(var pin of in_object.pins) {
-            var {cid, meta} = pin;
-            await this.pin.add(cid, meta, {bypass: true})
+        for (var pin of in_object.pins) {
+            var { cid, meta } = pin;
+            await this.pin.add(cid, meta, { bypass: true })
             totalDone++;
-            if(progressHandler) {
+            if (progressHandler) {
                 progressHandler(totalDone, in_object.size)
             }
         }
@@ -390,7 +406,7 @@ class Cluster {
         await this.sharding.start();
 
         //Reindex every 60 seconds
-        this.reindex_pid = setInterval(async() => {
+        this.reindex_pid = setInterval(async () => {
             debug(`Querying datastore for changes`);
             var result = await this.db.distinct("cid")
             this.sharding.reset()

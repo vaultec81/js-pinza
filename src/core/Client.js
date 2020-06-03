@@ -134,6 +134,8 @@ class client {
             new LevelDb(Path.join(this._options.path, "clusters", db.address.root)));
         await cluster.start();
 
+        this.openClusters[name] = cluster;
+
         //Add cluster to config with default cluster settings
         this.config.set(`clusters.${name}`, Object.assign({
             address: db.address.toString()
@@ -179,10 +181,70 @@ class client {
     }
     /**
      * Lists clusters tracked by this node.
+     * @param {{asArray:Boolean}} options
      * @returns {Promise{}}
      */
-    async listClusters() {
-        return this.config.get("clusters")
+    async listClusters(options) {
+        if(!options.asArray) {
+            options.asArray = true;
+        }
+        var clusters = this.config.get("clusters")
+        if(options.asArray) {
+            var out = [];
+            for(var clusterName in clusters) {
+                var cluster = clusters[clusterName];
+                cluster.name = clusterName
+                out.push(cluster)
+            }
+            return out;
+        } else {
+            return clusters;
+        }
+    }
+    /**
+     * Renames a cluster
+     * Warning: May have unintended consequences. Like broken client connections.
+     * @param {String} oldname 
+     * @param {String} newName 
+     */
+    async renameCluster(oldname, newName) {
+        var cluster_info = this.config.get(oldname)
+        if(cluster_info) {
+            this.config.set(newName, cluster_info);
+        } else {
+            var err = new Error("cluster not found")
+            err.code = ErrorCodes.ERR_Cluster_does_not_exist;
+        }
+        
+        if(this.openClusters[oldname]) {
+            this.openClusters[newName] = this.openClusters[oldname];
+        }
+    }
+    /**
+     * Returns information whether a cluster is open or not, exists or not.
+     * @param {String} name 
+     */
+    async clusterStatus(name) {
+        let exists;
+        let open;
+        
+        if(this.config.get(`clusters.${name}`)) {
+            exists = true;
+        } else {
+            exists = false,
+            open = false;
+        }
+        if(exists) {
+            if(this.openClusters[name]) {
+                open = true;
+            } else {
+                open = false;
+            }
+        }
+        return {
+            exists, 
+            open
+        }
     }
     /**
      * Initalizes repo and configuration
