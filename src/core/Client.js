@@ -35,7 +35,9 @@ class client {
      */
     cluster(name) {
         if(!this.openClusters[name]) {
-            throw "Cluster not opened"
+            var err = new Error("Cluster not opened")
+            err.code = ErrorCodes.ERR_Cluster_not_open;
+            throw err;
         } else {
             return this.openClusters[name];
         }
@@ -58,7 +60,9 @@ class client {
         }
         var clusters = await this.listClusters();
         if(clusters[name] && options.overwrite !== true) {
-            throw `Cluster already exists with name of ${name}`;
+            var err = new Error(`Cluster already exists with name of ${name}`);
+            err.code = ErrorCodes.ERR_Cluster_already_exists;
+            throw err;
         } else if(clusters[name]) {
             //Make sure cluster is not already open.
             if(this.openClusters[name]) {
@@ -68,7 +72,9 @@ class client {
         }
         for(var cluster of Object.values(clusters)) {
             if(cluster.address === address) {
-                throw `Cluster already exists with same address`;
+                var err = new Error(`Cluster already exists with same address`);
+                err.code = ErrorCodes.ERR_Cluster_already_exists;
+                throw err;
             }
         }
         //TODO: pull settings directly from other peers.
@@ -114,10 +120,14 @@ class client {
             options.overwrite = false;
         }
         if(this.config.get(`clusters.${name}`) && options.overwrite !== true) {
-            throw "Cluster already exists"
+            var err = new Error("Cluster already exists");
+            err.code = ErrorCodes.ERR_Cluster_already_exists;
+            throw err;
         }
         if(!name) {
-            throw "Name is a required argument"
+            var err = new Error("Name is a required argument");
+            err.code = ErrorCodes.ERR_missing_args;
+            throw err;
         }
         var db = await this._orbitdb.create(name, "aviondb.collection", {
             overwrite: true,
@@ -163,7 +173,9 @@ class client {
         var cluster_info = this.config.get(`clusters.${name}`);
 
         if(!cluster_info && options.create !== true) {
-            throw `Cluster with name of ${name} does not exist`;
+            var err = new Error(`Cluster with name of ${name} does not exist`);
+            err.code = ErrorCodes.ERR_Cluster_does_not_exist;
+            throw err;
         } else if(options.create === true) {
             return await this.createCluster(name, options)
         }
@@ -214,6 +226,7 @@ class client {
         } else {
             var err = new Error("cluster not found")
             err.code = ErrorCodes.ERR_Cluster_does_not_exist;
+            throw err;
         }
         
         if(this.openClusters[oldname]) {

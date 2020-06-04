@@ -6,7 +6,7 @@ const multihash = require('multihashes')
 const CID = require('cids')
 const { default: PQueue } = require('p-queue');
 const dagCbor = require('ipld-dag-cbor')
-const ErrCodes = require('./ErrorCodes')
+const ErrorCodes = require('./ErrorCodes')
 
 /**
  * Pinza file health management system
@@ -46,15 +46,23 @@ class Pin {
         })
         if (record && options.bypass === false) {
             var err = new Error(`Pin with cid of ${cid.toString()} already exists`)
-            err.code = ErrCodes.ERR_Pin_already_exists;
+            err.code = ErrorCodes.ERR_Pin_already_exists;
             throw err;
         }
-
-        await this.db.insertOne({
-            meta,
-            cid: cid.toString(),
-            type: "ipfs"
-        })
+        try {
+            await this.db.insertOne({
+                meta,
+                cid: cid.toString(),
+                type: "ipfs"
+            })
+        } catch (err1) {
+            if(!err1.message.includes("Error: Could not append entry")) {
+                var err = new Error(err1.message);
+                err.code = ErrorCodes.ERR_write_denied
+                throw err;
+            }
+            throw err1;
+        }
     }
     /**
      * Remove CID from cluster
@@ -63,9 +71,18 @@ class Pin {
      */
     async rm(cid, options) {
         cid = new CID(cid);
-        await this.db.findOneAndDelete({
-            cid: cid.toString()
-        })
+        try {
+            await this.db.findOneAndDelete({
+                cid: cid.toString()
+            })
+        } catch (err1) {
+            if(!err1.message.includes("Error: Could not append entry")) {
+                var err = new Error(err1.message);
+                err.code = ErrorCodes.ERR_write_denied
+                throw err;
+            }
+            throw err1;
+        }
     }
     /**
      * Checks whether a CID is pinned to the cluster
