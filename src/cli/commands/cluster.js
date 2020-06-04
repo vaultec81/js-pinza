@@ -281,11 +281,11 @@ var pinls = {
             }
         })).data;
         var pin_data = response.payload
+        var totalSize = 0;
         if (table) {
             var asciiTable = new AsciiTable(`Pinset (Total Length: ${pin_data.length})`);
             if (size) {
                 asciiTable.setHeading("CID", "Meta", "Size");
-
             } else {
                 asciiTable.setHeading("CID", "Meta");
             }
@@ -293,6 +293,8 @@ var pinls = {
             for (var pin of pin_data) {
                 if (pin.size) {
                     asciiTable.addRow(pin.cid, JSON.stringify(pin.meta), PrettyBytes(pin.size))
+                    totalSize = totalSize + pin.size;
+                    asciiTable.setTitle(`Pinset (Total Length: ${pin_data.length}) (Total Stored: ${PrettyBytes(totalSize)})`)
                 } else {
                     asciiTable.addRow(pin.cid, JSON.stringify(pin.meta))
                 }
@@ -300,11 +302,10 @@ var pinls = {
 
             print(asciiTable.toString())
         } else {
-            for (var pin of export_data) {
+            for (var pin of pin_data) {
                 print(pin.cid)
             }
         }
-
     }
 }
 var pin = {
@@ -361,9 +362,9 @@ var leave = {
         })).data;
 
         if (response.success === true) {
-            print(`Leaved cluster with name of "${name}"`);
+            print(`Left cluster with name of "${name}"`);
         } else {
-            print(`Failed to leave cluster\n ${response.err}`);
+            print(`Failed to leave cluster\n${response.err}`);
         }
     }
 }
@@ -383,12 +384,12 @@ var create = {
         var response = (await axios.post("http://localhost:8001/api/v0/cluster/create", {
             name
         })).data;
-        var cluster_data = respose.payload;
+        var cluster_data = response.payload;
 
         if (response.success === true) {
             print(`Created cluster with name of "${name}" and address of ${cluster_data.address}`);
         } else {
-            print(`Failed to create cluster\n ${response.err}`);
+            print(`Failed to create cluster\n${JSON.stringify(response.err)}`);
         }
     }
 }
@@ -407,7 +408,6 @@ var open = {
         var response = (await axios.post("http://localhost:8001/api/v0/cluster/create", {
             name
         })).data;
-        var cluster_data = respose.payload;
 
         if (response.success === true) {
             print(`Opened cluster with name of "${name}"`);
