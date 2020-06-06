@@ -284,3 +284,37 @@ exports.close = {
         }
     }
 }
+exports.status = {
+    validate: {
+        cluster: Joi.string().required()
+    },
+    async handler(request, h) {
+        const { pinza } = request.server.app;
+        var { cluster } = request.payload;
+        try {
+            return h.response({
+                success: true,
+                payload: await pinza.clusterStatus(cluster)
+            })
+        } catch (err) {
+            if(err.code) {
+                return h.response({
+                    success: false,
+                    err: {
+                        message: err.message,
+                        code: err.code
+                    }
+                })
+            } else {
+                console.log(err); //Print error to CLI. TODO: add logging feature
+                return h.response({
+                    success: false,
+                    err: {
+                        message: err.message,
+                        code: ErrorCodes.InternalServerError
+                    }
+                })
+            }
+        }
+    }
+}

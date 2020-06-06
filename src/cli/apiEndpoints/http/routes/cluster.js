@@ -40,6 +40,14 @@ module.exports = [
     },
     {
         method: 'POST',
+        path: '/api/v0/cluster/status',
+        options: {
+            validate: resources.cluster.status.handler
+        },
+        handler: resources.cluster.status.handler
+    },
+    {
+        method: 'POST',
         path: '/api/v0/cluster/pin/add',
         options: {},
         handler: resources.cluster.pin.handler
