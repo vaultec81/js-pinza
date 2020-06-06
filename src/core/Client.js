@@ -233,6 +233,15 @@ class client {
             this.openClusters[newName] = this.openClusters[oldname];
         }
     }
+    async closeCluster(name) {
+        if(!this.openClusters[name]) {
+            var err = new Error("Cluster is not open");
+            err.code = ErrorCodes.ERR_Cluster_not_open;
+            throw err;
+        }
+        await this.openClusters[name].stop();
+        delete this.openClusters[name];
+    }
     /**
      * Returns information whether a cluster is open or not, exists or not.
      * @param {String} name 

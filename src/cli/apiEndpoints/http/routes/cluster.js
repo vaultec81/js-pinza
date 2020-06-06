@@ -32,6 +32,14 @@ module.exports = [
     },
     {
         method: 'POST',
+        path: '/api/v0/cluster/close',
+        options: {
+            validate: resources.cluster.close.handler
+        },
+        handler: resources.cluster.close.handler
+    },
+    {
+        method: 'POST',
         path: '/api/v0/cluster/pin/add',
         options: {},
         handler: resources.cluster.pin.handler
