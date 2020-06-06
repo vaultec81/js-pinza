@@ -1,6 +1,7 @@
 const multiaddr = require('multiaddr');
 const axios = require('axios')
 const toUrlSearchParams = require('./lib/to-url-search-params')
+const Client = require('./Client');
 
 class Config {
     constructor(self) {
@@ -71,6 +72,7 @@ class HTTPClient {
             this.apiAddr = apiAddr;
         }
         this.config = new Config(this);
+        this.Client = new Client(this);
     }
     _craftURL(path) {
         var nodeAddress = this.apiAddr.nodeAddress();
