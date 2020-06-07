@@ -34,7 +34,7 @@ module.exports = [
         method: 'POST',
         path: '/api/v0/cluster/close',
         options: {
-            validate: resources.cluster.close.handler
+            validate: resources.cluster.close.validate
         },
         handler: resources.cluster.close.handler
     },
@@ -42,7 +42,7 @@ module.exports = [
         method: 'POST',
         path: '/api/v0/cluster/status',
         options: {
-            validate: resources.cluster.status.handler
+            validate: resources.cluster.status.validate
         },
         handler: resources.cluster.status.handler
     },

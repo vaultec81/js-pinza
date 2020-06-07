@@ -252,7 +252,9 @@ exports.pinls = {
 }
 exports.close = {
     validate: {
-        cluster: Joi.string().required()
+        payload: Joi.object({
+            cluster: Joi.string().required()
+        })
     },
     async handler(request, h) {
         const { pinza } = request.server.app;
@@ -286,7 +288,9 @@ exports.close = {
 }
 exports.status = {
     validate: {
-        cluster: Joi.string().required()
+        payload: Joi.object({
+            cluster: Joi.string().required()
+        })
     },
     async handler(request, h) {
         const { pinza } = request.server.app;
