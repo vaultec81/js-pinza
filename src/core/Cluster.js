@@ -200,7 +200,7 @@ class Pin {
         return pins;
     }
     async start() {
-        setInterval(() => {
+        setInterval( async() => {
             for await (var entry of this.datastore.query({ pattern: "/commited", keysOnly: true })) {
                 const { key, value } = entry;
                 var cid = key.baseNamespace()
