@@ -20,7 +20,7 @@ class Pin {
             err.code = result.err.code;
             throw err;
         }
-        return result;
+        return result.payload;
     }
     async rm(cid, options) {
         var result = (await axios.post(this.self._craftURL("/api/v0/cluster/pin/rm"), {
@@ -33,7 +33,7 @@ class Pin {
             err.code = result.err.code;
             throw err;
         }
-        return result;
+        return result.payload;
     }
     async ls(options) {
         var result = (await axios.post(this.self._craftURL("/api/v0/cluster/pin/ls"), {
@@ -45,7 +45,7 @@ class Pin {
             err.code = result.err.code;
             throw err;
         }
-        return result;
+        return result.payload;
     }
     async currentCommitment() {
         var result = (await axios.post(this.self._craftURL("/api/v0/cluster/pin/commitment"), {
@@ -56,7 +56,7 @@ class Pin {
             err.code = result.err.code;
             throw err;
         }
-        return result;
+        return result.payload;
     }
 }
 
@@ -67,7 +67,7 @@ class Cluster {
     constructor(self, name) {
         this.self = self;
         this.name = name;
-        this.Pin = new Pin(self, name);
+        this.pin = new Pin(self, name);
     }
     /**
      * Exports entire pinset
@@ -84,7 +84,7 @@ class Cluster {
             err.code = result.err.code;
             throw err;
         }
-        return result;
+        return result.payload;
     }
     /**
      * Imports pinset to cluster
@@ -115,7 +115,7 @@ class Cluster {
             err.code = result.err.code;
             throw err;
         }
-        return result;
+        return result.payload;
     }
 }
 module.exports = Cluster;

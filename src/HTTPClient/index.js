@@ -57,8 +57,9 @@ class Config {
     }
 }
 
-class HTTPClient {
+class HTTPClient extends Client {
     constructor(apiAddr) {
+        super();
         if(!apiAddr) {
             throw "'apiAddr' is a required argument.";
         }
@@ -72,7 +73,7 @@ class HTTPClient {
             this.apiAddr = apiAddr;
         }
         this.config = new Config(this);
-        this.Client = new Client(this);
+        this.self = this;
     }
     _craftURL(path) {
         var nodeAddress = this.apiAddr.nodeAddress();

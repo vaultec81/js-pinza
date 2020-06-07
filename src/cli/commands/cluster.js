@@ -35,17 +35,16 @@ var myCommitment = {
             }
         }
 
-        var response = (await axios.post("http://localhost:8001/api/v0/cluster/mycommitment", {
-            cluster
-        })).data;
-        var commitment = Object.values(response.payload);
+        var cluster = await pinza.cluster(cluster);
+        
+        var commitment = await cluster.pin.currentCommitment();
         if (commitment.length === 0) {
             return
         }
         var table = new AsciiTable(`Commitment (${cluster}) (Total: ${commitment.length})`);
         table.setHeading("CID", "Size");
-        for (var hash in response.payload) {
-            var obj_info = response.payload[hash]
+        for (var hash in commitment) {
+            var obj_info = commitment[hash]
             var size = 0;
             if (obj_info.stat) {
                 size = obj_info.stat.CumulativeSize
@@ -65,23 +64,19 @@ var create = {
     },
 
     async handler(argv) {
-        const { print } = argv.ctx;
+        const { print, pinza } = argv.ctx;
         const { name } = argv;
 
         if (name.includes(".")) {
             print(". Is not permitted in cluster naming")
             return
         }
-
-        var response = (await axios.post("http://localhost:8001/api/v0/cluster/create", {
-            name
-        })).data;
-        var cluster_info = response.payload
-        if (response.success !== true) {
-
+        try {
+            var cluster_info = await pinza.createCluster(name)
+            print(`Created cluster with name of ${name} and address of ${cluster_info.address}`)
+        } catch(err) {
+            print(err)
         }
-
-        print(`Created cluster with name of ${name} and address of ${cluster_info.address}`)
     }
 }
 
@@ -130,11 +125,9 @@ var Export = {
             print(`Exporting '${cluster}'`)
         }
 
-        var response = (await axios.post("http://localhost:8001/api/v0/cluster/export", {
-            cluster
-        })).data;
-
-        var export_data = response.payload
+        var cluster = await pinza.cluster(cluster)
+        
+        var export_data = await cluster.export()
         let export_buffer;
         if (format === "json") {
             export_buffer = JSON.stringify(export_data)
@@ -202,11 +195,8 @@ var Import = {
             obj_import = DagCbor.util.deserialize(income_buffer);
         }
 
-
-        var response = (await axios.post("http://localhost:8001/api/v0/cluster/import", {
-            cluster,
-            input: obj_import
-        })).data;
+        var cluster = await pinza.cluster(cluster);
+        await cluster.import(obj_import)
     }
 }
 
@@ -230,15 +220,14 @@ var pinadd = {
                 return;
             }
         }
+        var cluster = await pinza.cluster(cluster);
 
-        var response = (await axios.post("http://localhost:8001/api/v0/cluster/pin/add", {
-            cluster,
-            cid
-        })).data;
-        if (response.success === true) {
+        try {
+            await cluster.pin.add(cid)
             print(`Pinned ${cid} to cluster`);
-        } else {
+        } catch(err) {
             print(`Failed to pin ${cid} to cluster`)
+            print(err.message)
         }
     }
 }
@@ -273,14 +262,11 @@ var pinls = {
                 return;
             }
         }
+        var cluster = await pinza.cluster(cluster);
 
-        var response = (await axios.post("http://localhost:8001/api/v0/cluster/pin/ls", {
-            cluster,
-            options: {
-                size
-            }
-        })).data;
-        var pin_data = response.payload
+        var pin_data = await cluster.pin.ls({
+            size
+        })
         var totalSize = 0;
         if (table) {
             var asciiTable = new AsciiTable(`Pinset (Total Length: ${pin_data.length})`);
@@ -329,15 +315,11 @@ var join = {
         const { print } = argv.ctx;
         const { address, name } = argv;
 
-        var response = (await axios.post("http://localhost:8001/api/v0/cluster/join", {
-            address,
-            name
-        })).data;
-
-        if (response.success === true) {
-            print(`Joined cluster with address of ${address} and name of ${name}`);
-        } else {
-            print(`Failed to join cluster.\nReason: ${response.err.message}`)
+        try {
+            var cluster_info = await pinza.joinCluster(name, address);
+            print(`Joined cluster with address of ${cluster_info.address} and name of ${cluster_info.name}`);
+        } catch(err) {
+            print(`Failed to join cluster.\nReason: ${err.message}`)
         }
     }
 }
@@ -351,20 +333,22 @@ var leave = {
             describe: "Verify you know what you are doing.",
             type: "bool",
             required: true
+        },
+        erase: {
+            describe: "Removes all data associated with the cluster",
+            type: "bool",
+            default: true
         }
     },
     async handler(argv) {
         const { print } = argv.ctx;
         const { name } = argv;
 
-        var response = (await axios.post("http://localhost:8001/api/v0/cluster/leave", {
-            name
-        })).data;
-
-        if (response.success === true) {
+        try {
+            await pinza.leaveCluster(name);
             print(`Left cluster with name of "${name}"`);
-        } else {
-            print(`Failed to leave cluster\n${response.err}`);
+        } catch(err) {
+            print(`Failed to leave cluster\n${JSON.stringify(err)}`);
         }
     }
 }
@@ -378,18 +362,13 @@ var create = {
     },
 
     async handler(argv) {
-        const { print } = argv.ctx;
+        const { print, pinza } = argv.ctx;
         const { name } = argv;
-
-        var response = (await axios.post("http://localhost:8001/api/v0/cluster/create", {
-            name
-        })).data;
-        var cluster_data = response.payload;
-
-        if (response.success === true) {
+        try {
+            var cluster_data = await pinza.createCluster(name);
             print(`Created cluster with name of "${name}" and address of ${cluster_data.address}`);
-        } else {
-            print(`Failed to create cluster\n${JSON.stringify(response.err)}`);
+        } catch(err) {
+            print(`Failed to create cluster\n${JSON.stringify(err)}`);
         }
     }
 }
@@ -403,16 +382,14 @@ var open = {
     },
 
     async handler(argv) {
-        const { print } = argv.ctx;
+        const { print, pinza } = argv.ctx;
         const { name } = argv;
-        var response = (await axios.post("http://localhost:8001/api/v0/cluster/create", {
-            name
-        })).data;
-
-        if (response.success === true) {
+        try {
+            await pinza.openCluster(name);
             print(`Opened cluster with name of "${name}"`);
-        } else {
-            print(`Failed to open cluster\n ${JSON.stringify(response.err)}`);
+        } catch(err) {
+            print(`Failed to open cluster\n ${JSON.stringify(err)}`);
+
         }
     }
 }

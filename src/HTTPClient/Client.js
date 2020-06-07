@@ -1,6 +1,7 @@
 const Cluster = require('./Cluster');
 const OrbitDBAddress = require('orbit-db/src/orbit-db-address')
 const ErrorCodes = require('../core/ErrorCodes');
+const axios = require('axios')
 
 class Client {
     constructor(self) {
@@ -52,7 +53,7 @@ class Client {
             err.code = response.err.code;
             throw err;
         }
-        return new Cluster(this.self, name);
+        return response.payload;
     }
     /**
      * Opens a cluster instance. 
@@ -175,7 +176,7 @@ class Client {
      */
     async clusterStatus(name) {
         var response = (await axios.post(this.self._craftURL("/api/v0/cluster/status"), {
-            name
+            cluster:name
         })).data;
         if(response.err) {
             var err = new Error(response.err.message);
