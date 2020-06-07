@@ -201,7 +201,7 @@ class Pin {
     }
     async start() {
         setInterval( async() => {
-            for await (var entry of this.datastore.query({ pattern: "/commited", keysOnly: true })) {
+            for await (var entry of this.cluster.datastore.query({ pattern: "/commited", keysOnly: true })) {
                 const { key, value } = entry;
                 var cid = key.baseNamespace()
                 try {
