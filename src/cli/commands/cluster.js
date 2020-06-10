@@ -294,13 +294,40 @@ var pinls = {
         }
     }
 }
+var pinRm = {
+    command: 'rm <cid>',
+    
+    describe: "Removes pin from cluster",
+
+    builder: {
+        
+    },
+
+    async handler(argv) {
+        const { print, pinza } = argv.ctx;
+        var { cluster, cid } = argv; 
+
+        if(!cluster) {
+            cluster = await pinza.config.get("defaultCluster")
+        }
+
+        var cluster = await pinza.cluster(cluster);
+        
+        try {
+            await cluster.pin.rm(cid)
+            print(`Removed ${cid} from cluster`)
+        } catch(err) {
+            print(err)
+        }
+    }
+}
 var pin = {
     command: 'pin <command>',
 
     describe: "Manage pins associated with a pinza cluster",
 
     builder(yargs) {
-        return yargs.command(pinls).command(pinadd)
+        return yargs.command(pinls).command(pinadd).command(pinRm)
     }
 }
 var join = {

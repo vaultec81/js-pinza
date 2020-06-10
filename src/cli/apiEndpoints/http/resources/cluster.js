@@ -52,15 +52,28 @@ exports.unpin = {
         const { cluster, cid } = request.payload
         var Cluster = pinza.cluster(cluster)
         try {
-            await Cluster.pin.rm(cid)
-        } catch (err) {
             return h.response({
-                err: {
-                    code: err.code,
-                    message: err.message
-                },
-                success: false
+                payload: await Cluster.pin.rm(cid),
+                success: true
             });
+        } catch (err) {
+            if(err.code) {
+                return h.response({
+                    err: {
+                        code: err.code,
+                        message: err.message
+                    },
+                    success: false
+                });
+            } else {
+                return h.response({
+                    err: {
+                        code: ErrorCodes.InternalServerError,
+                        message: err.message
+                    },
+                    success: false
+                });
+            }
         }
     }
 }

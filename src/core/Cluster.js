@@ -70,7 +70,15 @@ class Pin {
      * @param {*} options 
      */
     async rm(cid, options) {
-        cid = new CID(cid);
+        //cid = new CID(cid);
+        var curEntry = await this.db.findOne({
+            cid: cid.toString()
+        })
+        if(!curEntry) {
+            var err = new Error("Pin does not exist");
+            err.code = ErrorCodes.ERR_Pin_does_not_exist;
+            throw err;
+        }
         try {
             await this.db.findOneAndDelete({
                 cid: cid.toString()
