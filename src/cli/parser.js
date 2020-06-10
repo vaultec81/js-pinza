@@ -4,6 +4,7 @@ const parser = yargs
   .commandDir('commands')
   .showHelpOnFail(true)
   .strict()
+  .scriptName("pinza")
   .completion();
 
 if(args.length === 0) {
