@@ -148,7 +148,7 @@ class Client {
         if(!options.asArray) {
             options.asArray = true;
         }
-        var clusters = this.config.get("clusters")
+        var clusters = await this.config.get("clusters")
         if(options.asArray) {
             var out = [];
             for(var clusterName in clusters) {
