@@ -12,8 +12,6 @@ class Daemon {
     this.repoPath = options.repoPath;
     this.config = new Components.Config(this.repoPath)
     
-    
-
   }
   _apiEndpoints(iteratorCallback) {
     this.apiEndpoints._apiEndpoints(iteratorCallback)
