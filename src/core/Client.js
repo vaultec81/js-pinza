@@ -10,8 +10,11 @@ const LevelDb = require('datastore-level');
 const EventEmitter = require('events');
 const fs = require('fs');
 const ErrorCodes = require('./ErrorCodes');
-Orbitdb.addDatabaseType("aviondb.collection", require('aviondb/src/core/Collection'))
-Orbitdb.addDatabaseType("aviondb", AvionDb)
+try {
+    Orbitdb.addDatabaseType("aviondb.collection", require('aviondb/src/core/Collection'))
+} catch {
+
+}
 
 class client {
     constructor(ipfs, options) {
