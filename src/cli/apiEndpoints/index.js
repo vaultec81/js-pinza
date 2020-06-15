@@ -8,8 +8,16 @@ class apiEndpoints {
         this.endpoints = {};
     }
     _apiEndpoints(iteratorCallback) {
-        for(var endpoint of Object.values(this.endpoints)) {
-            iteratorCallback(endpoint.address, endpoint.name)
+        if(iteratorCallback) {
+            for(var endpoint of Object.values(this.endpoints)) {
+                iteratorCallback(endpoint.address, endpoint.name)
+            }
+        } else {
+            var out = {};
+            for(var name of Object.keys(this.endpoints)) {
+                out[name] = this.endpoints[name].address;
+            }
+            return out;
         }
     }
     async start() {
