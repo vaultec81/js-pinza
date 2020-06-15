@@ -7,7 +7,7 @@ class Pin {
         this.self = self;
         this.name = name;
     }
-    async add(cid, meta = {}, options) {
+    async add(cid, meta = {}, options = {}) {
         new CID(cid); //Throw error if cid is invalid;
         var result = (await axios.post(this.self._craftURL("/api/v0/cluster/pin/add"), {
             cid: cid.toString(),
@@ -22,7 +22,7 @@ class Pin {
         }
         return result.payload;
     }
-    async rm(cid, options) {
+    async rm(cid, options = {}) {
         var result = (await axios.post(this.self._craftURL("/api/v0/cluster/pin/rm"), {
             cid: cid.toString(),
             options,
@@ -35,7 +35,7 @@ class Pin {
         }
         return result.payload;
     }
-    async ls(options) {
+    async ls(options = {}) {
         var result = (await axios.post(this.self._craftURL("/api/v0/cluster/pin/ls"), {
             options,
             cluster: this.name

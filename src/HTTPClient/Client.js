@@ -39,7 +39,7 @@ class Client {
      * @param {{overwrite:Boolean}} options 
      * @returns {Promise<Cluster>} returns a cluster handler instance.
      */
-    async createCluster(name, options) {
+    async createCluster(name, options = {}) {
         if(!options.overwrite) {
             //Overwriting is not recommeded. However, support is still available.
             options.overwrite = false;
@@ -60,7 +60,7 @@ class Client {
      * @param {String} name 
      * @param {{create:Boolean}} options 
      */
-    async openCluster(name, options) {
+    async openCluster(name, options = {}) {
         if(!options.create) {
             options.create = false;
         }
@@ -80,7 +80,7 @@ class Client {
      * @param {String} name 
      * @param {{clearData:Boolean}} options 
      */
-    async leaveCluster(name, options) {
+    async leaveCluster(name, options = {}) {
         if(!options.clearData) {
             options.clearData = true
         }
@@ -101,7 +101,7 @@ class Client {
      * @param {String} address 
      * @param {{start:Boolean, overwrite:Boolean}} options
      */
-    async joinCluster(name, address, options) {
+    async joinCluster(name, address, options = {}) {
         OrbitDBAddress.parse(address); //Throws error if address is invalid.
         if(!options.start) {
             options.start = true;
@@ -144,7 +144,7 @@ class Client {
      * @param {{asArray:Boolean}} options
      * @returns {Promise{}}
      */
-    async listClusters(options) { 
+    async listClusters(options = {}) { 
         if(!options.asArray) {
             options.asArray = true;
         }

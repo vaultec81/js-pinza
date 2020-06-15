@@ -1,6 +1,6 @@
 {
   "name": "pinza",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-rc.3",
   "description": "IPFS pin distribution system",
   "main": "src/index.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "@hapi/hapi": "^19.1.1",
     "@hapi/joi": "^17.1.1",
     "ascii-table": "0.0.9",
-    "aviondb": "^0.2.2",
+    "aviondb": "0.2.2",
     "axios": "^0.19.2",
     "datastore-fs": "^0.9.1",
     "datastore-level": "^0.14.1",
