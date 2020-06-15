@@ -13,7 +13,7 @@
   "license": "GPL-3.0",
   "dependencies": {
     "@hapi/boom": "^9.1.0",
-    "@hapi/hapi": "^19.1.1",
+    "@hapi/hapi": "^18.4.1",
     "@hapi/joi": "^17.1.1",
     "ascii-table": "0.0.9",
     "aviondb": "0.2.2",
