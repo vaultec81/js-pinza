@@ -131,7 +131,11 @@ class Pin {
      * @param {CID|String} cid 
      */
     async _rm(cid) {
-        await this.cluster._ipfs.pin.rm(cid);
+        try {
+            await this.cluster._ipfs.pin.rm(cid);
+        } catch {
+            
+        }
     }
     /**
      * Retrieves the current pin commitment for this node

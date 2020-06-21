@@ -17,7 +17,7 @@ try {
 }
 
 class client {
-    constructor(ipfs, options) {
+    constructor(ipfs, options = {}) {
         this._ipfs = ipfs;
         this._orbitdb = null;
         this._ready = false;
@@ -61,7 +61,7 @@ class client {
             //Overwriting is not recommeded. However, support is still available.
             options.overwrite = false;
         }
-        var clusters = await this.listClusters();
+        var clusters = await this.listClusters({asArray: false});
         if(clusters[name] && options.overwrite !== true) {
             var err = new Error(`Cluster already exists with name of ${name}`);
             err.code = ErrorCodes.ERR_Cluster_already_exists;
@@ -199,7 +199,7 @@ class client {
      * @param {{asArray:Boolean}} options
      * @returns {Promise{}}
      */
-    async listClusters(options) {
+    async listClusters(options = {}) {
         if(!options.asArray) {
             options.asArray = true;
         }
@@ -207,7 +207,7 @@ class client {
         if(options.asArray) {
             var out = [];
             for(var clusterName in clusters) {
-                var cluster = clusters[clusterName];
+                const cluster = clusters[clusterName];
                 cluster.name = clusterName
                 out.push(cluster)
             }
@@ -301,14 +301,19 @@ class client {
             throw error;
         }
         fs.writeFileSync(Path.join(this._options.path, "repo.lock"), "");
-        await this.config.open()
-        this._orbitdb = await Orbitdb.createInstance(this._ipfs, {
-            directory: Path.join(this._options.path, "orbitdb")
-        });
-        var clusters = this.config.get("clusters");
-        for (var cluster_name in clusters) {
-            debug(`opening cluster: ${cluster_name}`)
-            this.openClusters[cluster_name] = await this.openCluster(cluster_name)
+        try {
+            await this.config.open()
+            this._orbitdb = await Orbitdb.createInstance(this._ipfs, {
+                directory: Path.join(this._options.path, "orbitdb")
+            });
+            var clusters = this.config.get("clusters");
+            for (var cluster_name in clusters) {
+                debug(`opening cluster: ${cluster_name}`)
+                this.openClusters[cluster_name] = await this.openCluster(cluster_name)
+            }
+        } catch(err) {
+            fs.unlinkSync(Path.join(this._options.path, "repo.lock"));
+            throw err;
         }
     }
     /**

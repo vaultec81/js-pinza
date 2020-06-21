@@ -5,8 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/test",
-    "dev": "set DEBUG=pinza:* & node src/test",
-    "dev:daemon": "set DEBUG=pinza:* & pinza daemon",
+    "dev": "export DEBUG=pinza:* & node src/test",
+    "dev:daemon": "export DEBUG=pinza:* & pinza daemon",
     "test": "mocha"
   },
   "author": "vaultec81",
