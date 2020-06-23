@@ -46,10 +46,7 @@ class Config {
         }
 
         const res = (await axios.post(this.self._craftURL("/api/v0/config"), {}, {
-            params: toUrlSearchParams({
-                arg: key,
-                ...options
-            }),
+            params: toUrlSearchParams(params),
             headers: options.headers
         })).data
 
