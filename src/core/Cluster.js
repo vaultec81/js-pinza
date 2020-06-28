@@ -193,15 +193,19 @@ class Pin {
     }
     /**
      * Lists CIDs that have been imported into this node.
-     * @param {{size:Boolean}} options
+     * @param {{size:Boolean, meta: Object}} options
      * @returns {Promise<[]>}
      */
     async ls(options = {}) {
         if (!options.size) {
             options.size = false;
         }
+        var query = {};
+        if(options.meta) {
+            query.meta = options.meta;
+        }
         var pins = [];
-        for (var e of await this.db.find({})) {
+        for (var e of await this.db.find(query)) {
             delete e._id
             if (options.size) {
                 var stat = await this.cluster._ipfs.object.stat(e.cid);
