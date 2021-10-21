@@ -1,12 +1,13 @@
+import PQueue from 'p-queue'
+import kBucket from 'k-bucket'
+import {Key} from 'interface-datastore'
+import multihash from 'multihashes'
+import CID from 'cids'
+import dagCbor from 'ipld-dag-cbor'
+import ErrorCodes from './ErrorCodes'
+import Components from './Components'
+import { CodedException } from "./Errors.model";
 var debug = require('debug')('pinza:cluster');
-const kBucket = require('k-bucket');
-const InterfaceDatastore = require('interface-datastore')
-const { Key } = InterfaceDatastore
-const multihash = require('multihashes')
-const CID = require('cids')
-const { default: PQueue } = require('p-queue');
-const dagCbor = require('ipld-dag-cbor')
-const ErrorCodes = require('./ErrorCodes')
 
 /**
  * Pinza file health management system
@@ -21,6 +22,9 @@ class Health {
     }
 }
 class Pin {
+    opQueue: any;
+    cluster: any;
+    db: any;
     /**
      * 
      * @param {cluster} pinza 
@@ -36,7 +40,9 @@ class Pin {
      * @param {Object} meta 
      * @param {{bypass}} options 
      */
-    async add(cid, meta = {}, options = {}) {
+    async add(cid, meta = {}, options: {
+        bypass?: boolean
+    } = {}) {
         if (!options.bypass) {
             options.bypass = false;
         }
@@ -45,7 +51,7 @@ class Pin {
             cid: cid.toString()
         })
         if (record && options.bypass === false) {
-            var err = new Error(`Pin with cid of ${cid.toString()} already exists`)
+            var err = new Error(`Pin with cid of ${cid.toString()} already exists`) as CodedException
             err.code = ErrorCodes.ERR_Pin_already_exists;
             throw err;
         }
@@ -57,7 +63,7 @@ class Pin {
             })
         } catch (err1) {
             if(!err1.message.includes("Error: Could not append entry")) {
-                var err = new Error(err1.message);
+                var err = new Error(err1.message) as CodedException;
                 err.code = ErrorCodes.ERR_write_denied
                 throw err;
             }
@@ -75,7 +81,7 @@ class Pin {
             cid: cid.toString()
         })
         if(!curEntry) {
-            var err = new Error("Pin does not exist");
+            var err = new Error("Pin does not exist") as CodedException;
             err.code = ErrorCodes.ERR_Pin_does_not_exist;
             throw err;
         }
@@ -85,7 +91,7 @@ class Pin {
             })
         } catch (err1) {
             if(!err1.message.includes("Error: Could not append entry")) {
-                var err = new Error(err1.message);
+                var err = new Error(err1.message) as CodedException;
                 err.code = ErrorCodes.ERR_write_denied
                 throw err;
             }
@@ -139,7 +145,7 @@ class Pin {
     }
     /**
      * Retrieves the current pin commitment for this node
-     * @returns {Promise}
+     * @returns {Promise<any>}
      */
     async currentCommitment() {
         var out = {};
@@ -159,7 +165,7 @@ class Pin {
      * @param {CID[]} commitment 
      */
     async setCommitment(commitment) {
-        var currentCommitment = await this.currentCommitment()
+        var currentCommitment = await this.currentCommitment() as any
         for (var pin of commitment) {
             if (!currentCommitment[pin.toString()]) {
                 await this.cluster.datastore.put(`/commited/${pin}`, "")
@@ -167,13 +173,13 @@ class Pin {
                 this.opQueue.add(async () => await this._add(pin))
             }
         }
-        for (var pin in currentCommitment) {
+        /*for (var pin in currentCommitment) {
             if (!commitment.includes(pin.toString())) {
                 debug(`removing ${pin} from commitment`)
                 await this.cluster.datastore.delete(`/commited/${pin}`)
                 this.opQueue.add(async () => await this._rm(pin))
             }
-        }
+        }*/
     }
     /**
      * Checks whether a CID has been commited to this node.
@@ -196,11 +202,16 @@ class Pin {
      * @param {{size:Boolean, meta: Object}} options
      * @returns {Promise<[]>}
      */
-    async ls(options = {}) {
+    async ls(options: {
+        size?: boolean,
+        meta?: Object
+    } = {}) {
         if (!options.size) {
             options.size = false;
         }
-        var query = {};
+        var query: {
+            meta?: Object
+        } = {};
         if(options.meta) {
             query.meta = options.meta;
         }
@@ -236,10 +247,13 @@ class Pin {
         this.opQueue.clear()
     }
 }
-class Sharding {
+export class Sharding {
+    datastore: any;
+    options:  {nodeId: string};
+    bucket: any;
     constructor(datastore, options = {}) {
         this.datastore = datastore;
-        this.options = options;
+        this.options = options as  {nodeId: string};
 
         var { nodeId } = this.options;
         if (nodeId) {
@@ -345,7 +359,15 @@ class Sharding {
 
     }
 }
-class Cluster {
+export class Cluster {
+    private _ipfs: any;
+    db: any;
+    config: any;
+    datastore: any;
+    pin: Pin;
+    sharding: Sharding;
+    access: any;
+    reindex_pid: NodeJS.Timer;
     /**
      * Pinza cluster constructor
      * @param {*} ipfs 
@@ -361,6 +383,7 @@ class Cluster {
         this.datastore = datastore;
         this.pin = new Pin(this);
         this.sharding = new Sharding(datastore);
+        this.access = new Components.Access(this)
     }
     /**
      * Returns OrbitDB ID of this cluster
@@ -379,7 +402,7 @@ class Cluster {
      * Exports entire pinset
      * @param {{format:String}} options 
      */
-    async export(options = {}) {
+    async export(options: {format?: string} = {}) {
         if (!options.format) {
             options.format = "raw"
             //options.format = "cbor"
@@ -406,7 +429,11 @@ class Cluster {
      * @param {*} in_object 
      * @param {{format:String, clear:Boolean}} options 
      */
-    async import(in_object, options = {}) {
+    async import(in_object, options: {
+        progressHandler?: Function,
+        format?: string,
+        clear?: boolean
+    } = {}) {
         var { progressHandler } = options;
         if (!options.format) {
             options.format = "raw"
@@ -462,5 +489,4 @@ class Cluster {
 
     }
 }
-Cluster.Sharding = Sharding
-module.exports = Cluster;
+

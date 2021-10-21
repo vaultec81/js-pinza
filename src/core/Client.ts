@@ -1,5 +1,6 @@
+import { CodedException } from "./Errors.model";
 const Orbitdb = require('orbit-db');
-const Cluster = require('./Cluster')
+import {Cluster} from './Cluster'
 const mergeOptions = require('merge-options')
 const EnvironmentAdapter = require('./EnvironmentAdapter')
 const Components = require('./Components')
@@ -17,6 +18,13 @@ try {
 }
 
 class client {
+    openClusters: any;
+    private _ipfs: any;
+    private _orbitdb: any;
+    private _ready: boolean;
+    private _options: any;
+    config: any;
+    events: any;
     constructor(ipfs, options = {}) {
         this._ipfs = ipfs;
         this._orbitdb = null;
@@ -38,7 +46,7 @@ class client {
      */
     cluster(name) {
         if(!this.openClusters[name]) {
-            var err = new Error("Cluster not opened")
+            var err = new Error("Cluster not opened") as CodedException
             err.code = ErrorCodes.ERR_Cluster_not_open;
             throw err;
         } else {
@@ -53,7 +61,10 @@ class client {
      * @param {{start:Boolean, overwrite:Boolean}} options
      * @returns {Promise<null>}
      */
-    async joinCluster(name, address, options = {}) {
+    async joinCluster(name, address, options: {
+        start?: boolean,
+        overwrite?: boolean
+    } = {}) {
         if(!options.start) {
             options.start = true;
         }
@@ -63,7 +74,7 @@ class client {
         }
         var clusters = await this.listClusters({asArray: false});
         if(clusters[name] && options.overwrite !== true) {
-            var err = new Error(`Cluster already exists with name of ${name}`);
+            var err = new Error(`Cluster already exists with name of ${name}`) as CodedException;
             err.code = ErrorCodes.ERR_Cluster_already_exists;
             throw err;
         } else if(clusters[name]) {
@@ -73,9 +84,9 @@ class client {
             }
             delete this.openClusters[name];
         }
-        for(var cluster of Object.values(clusters)) {
+        for(var cluster of Object.values(clusters) as any) {
             if(cluster.address === address) {
-                var err = new Error(`Cluster already exists with same address`);
+                var err = new Error(`Cluster already exists with same address`) as CodedException;
                 err.code = ErrorCodes.ERR_Cluster_already_exists;
                 throw err;
             }
@@ -96,7 +107,7 @@ class client {
      * @param {String} name 
      * @param {{clearData:Boolean}} options 
      */
-    async leaveCluster(name, options = {}) {
+    async leaveCluster(name, options: {clearData?: boolean} = {}) {
         if(!options.clearData) {
             options.clearData = true
         }        
@@ -118,23 +129,24 @@ class client {
      * @param {{overwrite:Boolean}} options 
      * @returns {Promise<Cluster>} Cluster instance
      */
-    async createCluster(name, options = {}) {
+    async createCluster(name, options: {overwrite?: boolean} = {}) {
         if(!options.overwrite) {
             options.overwrite = false;
         }
         if(this.config.get(`clusters.${name}`) && options.overwrite !== true) {
-            var err = new Error("Cluster already exists");
+            var err = new Error("Cluster already exists") as CodedException;
             err.code = ErrorCodes.ERR_Cluster_already_exists;
             throw err;
         }
         if(!name) {
-            var err = new Error("Name is a required argument");
+            var err = new Error("Name is a required argument") as CodedException;
             err.code = ErrorCodes.ERR_missing_args;
             throw err;
         }
         var db = await this._orbitdb.create(name, "aviondb.collection", {
             overwrite: true,
             accessController: {
+                type: "orbitdb",
                 write: [
                     this._orbitdb.identity.id //Only allow writes from this node until symmetric key authentication can be used. Or add access dynamically through orbitdb AC
                 ]
@@ -166,7 +178,7 @@ class client {
      * @param {{create:Boolean}} options 
      * @returns {Promise<Cluster>} Cluster instance
      */
-    async openCluster(name, options = {}) {
+    async openCluster(name, options: {create?: boolean} = {}) {
         if(!options.create) {
             options.create = false;
         }
@@ -176,11 +188,11 @@ class client {
         var cluster_info = this.config.get(`clusters.${name}`);
 
         if(!cluster_info && options.create !== true) {
-            var err = new Error(`Cluster with name of ${name} does not exist`);
+            var err = new Error(`Cluster with name of ${name} does not exist`) as CodedException;
             err.code = ErrorCodes.ERR_Cluster_does_not_exist;
             throw err;
         } else if(options.create === true) {
-            return await this.createCluster(name, options)
+            return await this.createCluster(name)
         }
         var db = await this._orbitdb.open(cluster_info.address);
         db._orbitdb = this._orbitdb;
@@ -199,7 +211,7 @@ class client {
      * @param {{asArray:Boolean}} options
      * @returns {Promise{}}
      */
-    async listClusters(options = {}) {
+    async listClusters(options: {asArray?: boolean} = {}) {
         if(!options.asArray) {
             options.asArray = true;
         }
@@ -227,7 +239,7 @@ class client {
         if(cluster_info) {
             this.config.set(newName, cluster_info);
         } else {
-            var err = new Error("cluster not found")
+            var err = new Error("cluster not found") as CodedException
             err.code = ErrorCodes.ERR_Cluster_does_not_exist;
             throw err;
         }
@@ -238,7 +250,7 @@ class client {
     }
     async closeCluster(name) {
         if(!this.openClusters[name]) {
-            var err = new Error("Cluster is not open");
+            var err = new Error("Cluster is not open") as CodedException;
             err.code = ErrorCodes.ERR_Cluster_not_open;
             throw err;
         }
@@ -276,7 +288,7 @@ class client {
      */
     async init() {
         if(fs.existsSync(this._options.path)) {
-            var error = new Error("Repo already initialized");
+            var error = new Error("Repo already initialized") as CodedException;
             error.code = ErrorCodes.ERR_repo_already_initialized;
             throw error;
         }
@@ -290,13 +302,13 @@ class client {
      */
     async start() {
         if(!fs.existsSync(this._options.path)) {
-            var error = new Error("Repo not initialized");
+            var error = new Error("Repo not initialized") as CodedException;
             error.code = ErrorCodes.ERR_repo_not_initialized;
             throw error;
         }
         //Using file based repo lock as any other system is not neccessary for now.
         if(fs.existsSync(Path.join(this._options.path, "repo.lock"))) {
-            var error = new Error("repo.lock exists, daemon may be already running");
+            var error = new Error("repo.lock exists, daemon may be already running") as CodedException;
             error.code = ErrorCodes.ERR_repo_locked;
             throw error;
         }
@@ -322,7 +334,7 @@ class client {
      */
     async stop() {
         debug(`Stopping`)
-        for(var cluster of Object.values(this.openClusters)) {
+        for(var cluster of Object.values(this.openClusters) as Cluster[]) {
             await cluster.stop();
         }
         await this._orbitdb.stop()
